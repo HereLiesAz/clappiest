@@ -1,20 +1,37 @@
-# HereLiesAz Repository Starter
+# Clappiest
 
-General-purpose starter for new HereLiesAz repositories.
+Lost your phone in the dark? Clap. It screams back.
 
-This template deliberately contains **no executable GitHub Actions implementation**. Repository automation is selected from the central `HereLiesAz/workflows` catalog.
+Android app (`com.hereliesaz.clappiest`). While armed and the screen is off, it listens for an exact number of claps and plays an alarm sound of your choosing at full alarm volume — silent mode notwithstanding.
 
-## Start here
+## Use
 
-1. Rename/update the repository metadata and this README.
-2. Choose automation in `.github/workflow-request.yml`.
-3. Reuse existing central workflows and secrets whenever possible.
-4. If a capability is missing, submit a generalized workflow to `HereLiesAz/workflows`; do not create a one-off local implementation.
-5. Keep `version.properties` as the canonical project version state unless the repository has an established compatible version contract.
+1. Set **Claps** (2–10). The sequence must match exactly; four claps won't fire a three-clap setting.
+2. Set **Sensitivity**. Higher hears softer claps and forgives more noise.
+3. Pick a **Sound**: a system tone, or any audio file.
+4. **ARM**. A persistent notification confirms it is listening.
 
-For framework-specific projects, prefer one of the dedicated templates:
+Silence the alarm by unlocking the phone or tapping **Stop** on the notification.
 
-- `HereLiesAz/android-app-template`
-- `HereLiesAz/compose-multiplatform-template`
-- `HereLiesAz/react-app-template`
-- `HereLiesAz/gradle-library-template`
+## How it works
+
+| File | Role |
+|---|---|
+| `ClapDetector.kt` | Pure-Kotlin impulse detector. A clap = sharp onset above the adaptive noise floor that decays within 120 ms. Claps 120–1200 ms apart form one sequence; the sequence is judged after 1.2 s of quiet. |
+| `ListenerService.kt` | Microphone foreground service. Records only while the screen is off; stops when it turns on. On match: alarm + notification. |
+| `AlarmPlayer.kt` | Looping `MediaPlayer` on the alarm stream at max volume; restores prior volume afterward. |
+| `Prefs.kt` | Clap count, sensitivity, sound URI. |
+| `MainActivity.kt` | Compose settings screen and arm switch. |
+
+## Limits
+
+- Android forbids starting microphone services from the background, so after a reboot or the app being killed, open it and re-arm.
+- Listening holds a partial wake lock while the screen is off. Battery will notice.
+
+## Build
+
+~~~
+./gradlew :app:testDebugUnitTest :app:assembleDebug
+~~~
+
+Version state lives in `version.properties`.
