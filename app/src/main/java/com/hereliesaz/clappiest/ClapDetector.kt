@@ -30,12 +30,13 @@ class ClapDetector(
 
     private val s = sensitivity.coerceIn(0f, 1f)
     /** Absolute peak a clap must reach, as a fraction of full scale. */
-    private val minPeak = (0.55f - 0.45f * s) * Short.MAX_VALUE
+    private val minPeak = (0.30f - 0.25f * s) * Short.MAX_VALUE
     /** How far above the background RMS a clap's RMS must rise. */
-    private val onsetRatio = 9f - 5f * s
+    private val onsetRatio = 6f - 4f * s
 
     private var noiseRms = 300f
-    private var lastRms = 0f
+    /** An onset needs quiet before it, so a long sound cannot re-trigger halfway through. */
+    private var quiet = true
 
     // Pending onset awaiting proof that it decays like a clap.
     private var onsetMs = -1L
@@ -61,6 +62,7 @@ class ClapDetector(
     fun reset() {
         frameFill = 0
         onsetMs = -1
+        quiet = true
         lastClapMs = -1
         count = 0
     }
@@ -84,15 +86,16 @@ class ClapDetector(
                 onsetMs = -1
                 abandonSequence()
             }
-        } else if (peak >= minPeak && rms > noiseRms * onsetRatio && rms > lastRms * 2f) {
+        } else if (peak >= minPeak && rms > noiseRms * onsetRatio && quiet) {
             onsetMs = nowMs
+            quiet = false
             onsetRms = rms
         }
 
         // Background tracks slowly and ignores loud frames so claps don't raise it.
         if (onsetMs < 0 && rms < noiseRms * 3f) noiseRms += (rms - noiseRms) * 0.05f
         if (noiseRms < 50f) noiseRms = 50f
-        lastRms = rms
+        if (onsetMs < 0 && rms < noiseRms * 2f) quiet = true
 
         if (count > 0 && onsetMs < 0 && nowMs - lastClapMs > MAX_GAP_MS) {
             val matched = count == targetClaps
@@ -116,7 +119,8 @@ class ClapDetector(
         const val FRAME_MS = 10
         const val MIN_GAP_MS = 120L
         const val MAX_GAP_MS = 1200L
-        const val MAX_CLAP_MS = 120L
-        const val DECAY_RATIO = 0.3f
+        // Room reverb stretches a clap's tail; 200 ms / 40% still rejects speech and music.
+        const val MAX_CLAP_MS = 200L
+        const val DECAY_RATIO = 0.4f
     }
 }

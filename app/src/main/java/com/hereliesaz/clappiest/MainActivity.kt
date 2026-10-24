@@ -28,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -54,7 +55,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme(colorScheme = Mono) { Screen(Prefs(this)) }
+            MaterialTheme(colorScheme = Mono) {
+                // Surface supplies the white content color; bare Text defaults to black on black.
+                Surface(color = Color.Black, contentColor = Color.White) { Screen(Prefs(this)) }
+            }
         }
     }
 }
