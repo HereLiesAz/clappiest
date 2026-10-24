@@ -37,7 +37,9 @@
 #   website-sftp-deploy       build/deploy website over SFTP
 #
 # List catalog workflows this repository should use.
-requested: []
+requested:
+  - android-github-release
+  - android-play-release
 
 # If the needed capability is absent from the menu, describe the GENERAL workflow
 # to add to HereLiesAz/workflows. This is a request, not executable automation.
