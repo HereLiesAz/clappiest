@@ -7,3 +7,7 @@
 build/
 dist/
 out/
+.gradle/
+local.properties
+*.apk
+*.aab
