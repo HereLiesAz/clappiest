@@ -55,19 +55,26 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme(colorScheme = Mono) {
-                // Surface supplies the white content color; bare Text defaults to black on black.
-                Surface(color = Color.Black, contentColor = Color.White) { Screen(Prefs(this)) }
+            MaterialTheme(colorScheme = ClappiestColorScheme) {
+                // Surface supplies the theme background/content color.
+                Surface(
+                    color = MaterialTheme.colorScheme.background,
+                    contentColor = MaterialTheme.colorScheme.onBackground
+                ) { Screen(Prefs(this)) }
             }
         }
     }
 }
 
-private val Mono = darkColorScheme(
-    primary = Color.White, onPrimary = Color.Black,
-    background = Color.Black, onBackground = Color.White,
-    surface = Color.Black, onSurface = Color.White,
-    secondary = Color(0xFF888888),
+private val ClappiestColorScheme = darkColorScheme(
+    primary = Color(0xFF498C71),
+    onPrimary = Color.White,
+    secondary = Color(0xFFBB361C),
+    onSecondary = Color.White,
+    background = Color.Black,
+    onBackground = Color.White,
+    surface = Color.Black,
+    onSurface = Color.White,
 )
 
 private val requiredPermissions = buildList {

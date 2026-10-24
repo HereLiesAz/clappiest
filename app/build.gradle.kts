@@ -16,14 +16,15 @@ fun override(key: String) = (findProperty(key) as String?)?.takeIf { it.isNotBla
 
 android {
     namespace = "com.hereliesaz.clappiest"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.hereliesaz.clappiest"
         minSdk = 26
-        targetSdk = 35
-        versionCode = override("versionCodeOverride")?.toInt() ?: v("versionMajor") * 1_000_000 + v("versionMinor") * 10_000 +
-            v("versionPatch") * 100 + v("versionBuild")
+        targetSdk = 37
+        versionCode = override("versionCodeOverride")?.toInt()
+            ?: (v("versionMajor") * 1_000_000 + v("versionMinor") * 10_000 +
+                v("versionPatch") * 100 + v("versionBuild"))
         versionName = override("versionNameOverride")
             ?: "${v("versionMajor")}.${v("versionMinor")}.${v("versionPatch")}"
     }
@@ -47,7 +48,6 @@ android {
         compose = true
     }
     ndkVersion = "29.0.14206865"
-    buildToolsVersion = "37.0.0"
 }
 
 dependencies {
