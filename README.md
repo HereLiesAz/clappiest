@@ -35,3 +35,16 @@ Silence the alarm by unlocking the phone or tapping **Stop** on the notification
 ~~~
 
 Version state lives in `version.properties`.
+
+## Release
+
+Every push to `main` touching the app is built, signed and published centrally by `HereLiesAz/workflows`:
+
+- `.github/workflows/android-github-release.yml` → GitHub Release with the signed APK.
+- `.github/workflows/android-play-release.yml` → Google Play on the shared tracks.
+
+Those files are trigger contracts only; the central sync replaces them with trackers. Signing and Play
+credentials live in the `clappiest` environment of `HereLiesAz/workflows` (`KEYSTORE_PRIVATE`,
+`KEYSTORE_CHAIN`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`, `PLAY_SERVICE_ACCOUNT_JSON`).
+The publisher passes `versionCodeOverride` / `versionNameOverride`; release builds run R8 because Play
+uploads require `mapping.txt`.

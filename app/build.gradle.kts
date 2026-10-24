@@ -11,6 +11,8 @@ val versionProps = Properties().apply {
     rootProject.file("version.properties").inputStream().use { load(it) }
 }
 fun v(key: String) = versionProps.getProperty(key).toInt()
+// The central release publisher passes the Play-safe code/name; local builds derive them.
+fun override(key: String) = (findProperty(key) as String?)?.takeIf { it.isNotBlank() }
 
 android {
     namespace = "com.hereliesaz.clappiest"
@@ -20,14 +22,18 @@ android {
         applicationId = "com.hereliesaz.clappiest"
         minSdk = 26
         targetSdk = 35
-        versionCode = v("versionMajor") * 1_000_000 + v("versionMinor") * 10_000 +
+        versionCode = override("versionCodeOverride")?.toInt() ?: v("versionMajor") * 1_000_000 + v("versionMinor") * 10_000 +
             v("versionPatch") * 100 + v("versionBuild")
-        versionName = "${v("versionMajor")}.${v("versionMinor")}.${v("versionPatch")}"
+        versionName = override("versionNameOverride")
+            ?: "${v("versionMajor")}.${v("versionMinor")}.${v("versionPatch")}"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 on: the Play publisher requires mapping.txt.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
     }
     compileOptions {
