@@ -114,17 +114,22 @@ class ListenerService : Service() {
             val minBuf = AudioRecord.getMinBufferSize(
                 SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
             )
-            val rec = runCatching {
-                AudioRecord(
-                    MediaRecorder.AudioSource.MIC, SAMPLE_RATE,
-                    AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
-                    maxOf(minBuf, SAMPLE_RATE / 5),
-                )
-            }.getOrNull()
-            if (rec == null || rec.state != AudioRecord.STATE_INITIALIZED) {
-                rec?.release()
-                return@Thread
-            }
+            // VOICE_RECOGNITION skips the noise suppression and AGC that MIC applies on most phones;
+            // both flatten exactly the transients a clap is made of.
+            val rec = listOf(
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                MediaRecorder.AudioSource.MIC,
+            ).firstNotNullOfOrNull { source ->
+                runCatching {
+                    AudioRecord(
+                        source, SAMPLE_RATE,
+                        AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
+                        maxOf(minBuf, SAMPLE_RATE / 5),
+                    )
+                }.getOrNull()?.let { r ->
+                    if (r.state == AudioRecord.STATE_INITIALIZED) r else { r.release(); null }
+                }
+            } ?: return@Thread
             val buf = ShortArray(SAMPLE_RATE / 50)
             try {
                 rec.startRecording()

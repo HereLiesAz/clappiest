@@ -16,6 +16,12 @@ class ClapDetectorTest {
         (rnd.nextInt(-30000, 30000) * env).toInt().toShort()
     }
 
+    /** Distant clap in a live room: modest peak, slow reverberant tail. */
+    private fun roomClap(): ShortArray = ShortArray(rate * 150 / 1000) { i ->
+        val env = Math.exp(-i / (rate * 0.03)).toFloat()
+        (rnd.nextInt(-9000, 9000) * env).toInt().toShort()
+    }
+
     /** Loud sustained tone: speech/music stand-in. */
     private fun hum(ms: Int) = ShortArray(rate * ms / 1000) { i ->
         (20000 * Math.sin(2 * Math.PI * 220 * i / rate)).toInt().toShort()
@@ -45,6 +51,11 @@ class ClapDetectorTest {
 
     @Test fun sustainedSoundIgnored() =
         assertEquals(0, run(1, silence(1000), hum(500), silence(2000)))
+
+    @Test fun distantReverberantClapsTrigger() {
+        val parts = (0 until 3).flatMap { listOf(roomClap(), silence(250)) }.toTypedArray()
+        assertEquals(1, run(3, silence(1000), *parts, silence(2000)))
+    }
 
     @Test fun triggersRepeatedly() =
         assertEquals(2, run(2, silence(1000), *claps(2), silence(2000), *claps(2), silence(2000)))
