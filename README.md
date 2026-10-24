@@ -4,6 +4,8 @@ Lost your phone in the dark? Clap. It screams back.
 
 Android app (`com.hereliesaz.clappiest`). While armed and the screen is off, it listens for an exact number of claps and plays an alarm sound of your choosing at full alarm volume — silent mode notwithstanding.
 
+**Documentation: [docs/](docs/README.md)** — user guide, architecture, detection, permissions, privacy policy, Play listing, release, testing, known issues.
+
 ## Use
 
 1. Set **Claps** (2–10). The sequence must match exactly; four claps won't fire a three-clap setting.
