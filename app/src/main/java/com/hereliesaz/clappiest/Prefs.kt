@@ -2,9 +2,10 @@ package com.hereliesaz.clappiest
 
 import android.content.Context
 import android.net.Uri
+import android.util.Base64
 import androidx.core.content.edit
 
-/** User settings. One file, three knobs. */
+/** User settings. One file, multiple knobs. */
 class Prefs(context: Context) {
     private val sp = context.getSharedPreferences("clappiest", Context.MODE_PRIVATE)
 
@@ -15,6 +16,20 @@ class Prefs(context: Context) {
     var sensitivity: Float
         get() = sp.getFloat("sensitivity", 0.5f)
         set(v) = sp.edit { putFloat("sensitivity", v) }
+
+    var triggerMode: String
+        get() = sp.getString("triggerMode", "claps") ?: "claps"
+        set(v) = sp.edit { putString("triggerMode", v) }
+
+    var customSoundBytes: ByteArray?
+        get() {
+            val base64 = sp.getString("customSound", null) ?: return null
+            return runCatching { Base64.decode(base64, Base64.DEFAULT) }.getOrNull()
+        }
+        set(v) = sp.edit {
+            val base64 = v?.let { Base64.encodeToString(it, Base64.DEFAULT) }
+            putString("customSound", base64)
+        }
 
     /** Null means the system default alarm. */
     var alarmUri: Uri?

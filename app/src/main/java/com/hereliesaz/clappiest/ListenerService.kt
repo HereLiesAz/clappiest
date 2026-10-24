@@ -30,7 +30,7 @@ import androidx.core.content.ContextCompat
  * Foreground service that owns the microphone.
  *
  * Lifecycle of a find:
- *  screen off  -> start recording, feed [ClapDetector]
+ *  screen off  -> start recording, feed [ClapDetector] or [CustomSoundDetector]
  *  screen on   -> stop recording (the phone is evidently not lost)
  *  match       -> stop recording, sound [AlarmPlayer], post alarm notification
  *  unlock / Stop action -> silence; resume listening when the screen next goes dark
@@ -105,7 +105,20 @@ class ListenerService : Service() {
     @SuppressLint("MissingPermission") // Checked in MainActivity before the service starts.
     private fun startListening() {
         if (recordThread != null) return
-        val detector = ClapDetector(SAMPLE_RATE, prefs.clapCount, prefs.sensitivity)
+        val detector: Any = if (prefs.triggerMode == "custom") {
+            val bytes = prefs.customSoundBytes
+            val shorts = if (bytes != null) {
+                ShortArray(bytes.size / 2) { i ->
+                    ((bytes[i * 2].toInt() and 0xFF) or (bytes[i * 2 + 1].toInt() shl 8)).toShort()
+                }
+            } else {
+                ShortArray(0)
+            }
+            CustomSoundDetector(shorts, prefs.sensitivity)
+        } else {
+            ClapDetector(SAMPLE_RATE, prefs.clapCount, prefs.sensitivity)
+        }
+
         wakeLock = getSystemService(PowerManager::class.java)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "clappiest:listen")
             .apply { acquire() }
@@ -115,7 +128,7 @@ class ListenerService : Service() {
                 SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
             )
             // VOICE_RECOGNITION skips the noise suppression and AGC that MIC applies on most phones;
-            // both flatten exactly the transients a clap is made of.
+            // both flatten exactly the transients a clap or whistle is made of.
             val rec = listOf(
                 MediaRecorder.AudioSource.VOICE_RECOGNITION,
                 MediaRecorder.AudioSource.MIC,
@@ -137,7 +150,12 @@ class ListenerService : Service() {
                 while (recordThread === me) {
                     val n = rec.read(buf, 0, buf.size)
                     if (n < 0) break
-                    if (detector.process(buf, n)) {
+                    val matched = when (detector) {
+                        is ClapDetector -> detector.process(buf, n)
+                        is CustomSoundDetector -> detector.process(buf, n)
+                        else -> false
+                    }
+                    if (matched) {
                         main.post { onMatch() }
                         break
                     }
@@ -194,7 +212,10 @@ class ListenerService : Service() {
         NotificationCompat.Builder(this, CH_LISTEN)
             .setSmallIcon(R.drawable.ic_clap)
             .setContentTitle("Listening in the dark")
-            .setContentText("${prefs.clapCount} claps and I'll scream.")
+            .setContentText(
+                if (prefs.triggerMode == "custom") "Listening for your custom sound."
+                else "${prefs.clapCount} claps and I'll scream."
+            )
             .setContentIntent(openApp())
             .setOngoing(true)
             .build()
