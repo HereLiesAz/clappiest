@@ -6,6 +6,12 @@ Verified 2026-10-24 against `main` at 0.1.8 (`dedef62`) and the published APK. S
 
 Clap mode has never run on a physical device. Everything below that concerns it is from code reading and synthetic audio. The pipeline built and published 0.1.1–0.1.8. No CI runs the unit tests.
 
+## Unverified design choices
+
+- **Clap-to-silence timings** (`ALARM_LEAD_MS` 4 s, window 3 s, alarm 3.5 s, settle 400 ms) are estimates. Too short a window and the user cannot react; too long and the alarm is hard to follow to the phone. T28–T31.
+- **The window mute depends on the speaker's tail ending inside the 400 ms settle.** A long reverberant room, or a slow audio route (Bluetooth), may leave residual sound that the detector treats as background or a clap.
+- **Clap-to-silence is a short-pause alarm.** A user who finds the phone by following an unbroken tone gets gaps; the setting turns this off.
+
 ## Reported, unconfirmed
 
 ### R1. Lock screen skipped when the screen turns on (user report, 2026-10-24)

@@ -17,6 +17,11 @@ class Prefs(context: Context) {
         get() = sp.getFloat("sensitivity", 0.5f)
         set(v) = sp.edit { putFloat("sensitivity", v) }
 
+    /** Whether two claps silence a sounding alarm. */
+    var clapToStop: Boolean
+        get() = sp.getBoolean("clapToStop", true)
+        set(v) = sp.edit { putBoolean("clapToStop", v) }
+
     var triggerMode: String
         get() = sp.getString("triggerMode", "claps") ?: "claps"
         set(v) = sp.edit { putString("triggerMode", v) }

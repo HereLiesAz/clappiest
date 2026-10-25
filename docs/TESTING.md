@@ -45,6 +45,13 @@ Expected results assume clap mode, sensitivity 0.5, 3 claps, unless stated.
 | T24 | TalkBack | Navigate all controls | Every control has a spoken label (KNOWN_ISSUES #13) |
 | T25 | Sensitivity | Sweep 0 → 1 at T7 distances | Monotonic: higher hears more |
 | T26 | Custom sound (known failing) | Record a whistle → re-whistle | Expected to fail until KNOWN_ISSUES #1 is fixed; log scores |
+| T28 | Clap to silence | Trigger the alarm (T4); during a quiet gap clap twice | Alarm stops and does not resume; notification gone; listening resumes while the screen is off |
+| T29 | Silence reliability | T28 ×20 at 0.5, 1, 2 m, sensitivity 0.5 | Record success rate and the number of gaps needed |
+| T30 | Not heard while sounding | Clap twice while the alarm is sounding | No effect (by design) |
+| T31 | Gap sizing | Alarm in another room, then walk to it | Record whether 3 s of quiet is enough to react and clap; adjust constants |
+| T32 | Toggle off | Turn off "Clap twice to silence the alarm" → T4 | Unbroken alarm; no gaps; unlock and **Stop** work |
+| T33 | Alarm pulse vs screen | Trigger the alarm; turn the screen on with the power button | Alarm keeps pulsing; clapping still silences it |
+| T34 | Single clap or noise | During a gap: one clap; speech; a door slam | Alarm not silenced by a single clap or speech (record door-slam outcome) |
 | T27 | Lock-screen integrity | With a PIN/pattern/biometric set: arm → screen off → screen on, repeat 20×; also after an alarm and after **Stop**; then repeat with the app force-stopped | Lock screen appears every time, identically in both conditions (KNOWN_ISSUES R1) |
 
 ## Result log

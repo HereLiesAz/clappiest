@@ -40,6 +40,23 @@ A clap is an impulse: sudden, loud against the background, and gone within ~200 
 | `DECAY_RATIO` | 0.4 |
 | initial `noiseRms` | 300 |
 
+### Finish-on-target mode
+
+`ClapDetector(..., finishOnTarget = true)` fires the moment the target-th clap is confirmed, without the 1.2 s quiet period, and so also accepts a longer sequence. It silences the alarm (target 2). Every other rule above still applies, so a sustained sound or two claps more than 1.2 s apart do not fire it. After firing, the count resets.
+
+### Hearing a clap over the alarm
+
+The alarm plays at maximum volume beside the microphone. A clap made a metre away is far quieter than that, and the adaptive background floor would rise to the alarm's level, so claps would never register. The service therefore mutes the alarm for a window, discards the first 400 ms, and listens only inside it; see ARCHITECTURE.md ("Alarm pulse").
+
+| Constant | Value | Meaning |
+|---|---|---|
+| `ALARM_LEAD_MS` | 4000 | Unbroken alarm before the first window |
+| `DISMISS_WINDOW_MS` | 3000 | Muted listening window |
+| `ALARM_ON_MS` | 3500 | Alarm between windows |
+| `WINDOW_SETTLE_MS` | 400 | Samples discarded at the start of a window |
+
+These are estimates, not measurements. Tune them on devices (TESTING.md T28–T31).
+
 ### Tuning
 
 | Problem | Adjust |

@@ -14,14 +14,20 @@ import kotlin.math.sqrt
  * The sequence is judged once [MAX_GAP_MS] of silence follows the last clap, so four
  * claps never satisfy a target of three.
  *
+ * With [finishOnTarget] the detector instead fires the moment the [targetClaps]th clap is
+ * confirmed, without waiting for the quiet period, and so also accepts extra claps. Used to
+ * silence the alarm, where speed matters more than rejecting a longer sequence.
+ *
  * Pure Kotlin; no Android dependencies, so it is unit-testable on the JVM.
  *
  * @param sensitivity 0 (deaf) .. 1 (paranoid). Scales both the absolute and relative thresholds.
+ * @param finishOnTarget fire as soon as [targetClaps] claps are counted.
  */
 class ClapDetector(
     private val sampleRate: Int,
     private val targetClaps: Int,
     sensitivity: Float,
+    private val finishOnTarget: Boolean = false,
 ) {
     private val frameSize = sampleRate * FRAME_MS / 1000
     private val frame = ShortArray(frameSize)
@@ -80,8 +86,12 @@ class ClapDetector(
         if (onsetMs >= 0) {
             // Clap confirmed once energy collapses; rejected if it lingers.
             if (rms < onsetRms * DECAY_RATIO) {
-                registerClap(onsetMs)
+                val counted = registerClap(onsetMs)
                 onsetMs = -1
+                if (finishOnTarget && counted && count == targetClaps) {
+                    count = 0
+                    return true
+                }
             } else if (nowMs - onsetMs > MAX_CLAP_MS) {
                 onsetMs = -1
                 abandonSequence()
@@ -105,10 +115,12 @@ class ClapDetector(
         return false
     }
 
-    private fun registerClap(atMs: Long) {
-        if (count > 0 && atMs - lastClapMs < MIN_GAP_MS) return
+    /** Returns false when the clap is ignored as an echo of the previous one. */
+    private fun registerClap(atMs: Long): Boolean {
+        if (count > 0 && atMs - lastClapMs < MIN_GAP_MS) return false
         count++
         lastClapMs = atMs
+        return true
     }
 
     private fun abandonSequence() {

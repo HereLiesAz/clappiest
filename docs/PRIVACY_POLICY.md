@@ -13,7 +13,7 @@ Effective: 2026-10-24
 
 ## What the app does with your microphone
 
-When you tap **ARM**, and whenever the screen is off, the app listens through the microphone to detect the number of claps you set. When the app is open and disarmed, the main screen listens briefly to draw a live waveform.
+When you tap **ARM**, and whenever the screen is off, the app listens through the microphone to detect the number of claps you set. While the alarm is sounding it also listens, in short pauses, for two claps so you can silence it (you can turn this off in the app). When the app is open and disarmed, the main screen listens briefly to draw a live waveform.
 
 Audio is read in short pieces, measured, and discarded straight away. It is never written to storage and never transmitted.
 

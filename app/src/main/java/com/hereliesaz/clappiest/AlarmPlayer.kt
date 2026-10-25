@@ -31,6 +31,12 @@ class AlarmPlayer(private val context: Context) {
         player?.start()
     }
 
+    /** Mutes or restores the loop without stopping it, so the microphone can hear a clap. */
+    fun mute(muted: Boolean) {
+        val v = if (muted) 0f else 1f
+        runCatching { player?.setVolume(v, v) }
+    }
+
     fun stop() {
         player?.run { runCatching { stop() }; release() }
         player = null

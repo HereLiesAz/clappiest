@@ -13,7 +13,7 @@ Android app (`com.hereliesaz.clappiest`). While armed and the screen is off, it 
 3. Pick a **Sound**: a system tone, or any audio file.
 4. **ARM**. A persistent notification confirms it is listening.
 
-Silence the alarm by unlocking the phone or tapping **Stop** on the notification.
+Silence the alarm by unlocking the phone, tapping **Stop** on the notification, or clapping twice. The alarm pulses so the microphone can hear the claps over it; turn this off with "Clap twice to silence the alarm".
 
 ## How it works
 
