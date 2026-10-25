@@ -40,7 +40,7 @@ Everything needed to take *The Clappiest* from draft to published. Character lim
 | Email | **[add]** | |
 | Privacy policy URL | **[add]** | |
 
-### Full description (en-US, 1,647 / 4,000)
+### Full description (en-US, 1,849 / 4,000)
 
 ~~~
 Lost in the dark, found by applause.
@@ -51,7 +51,7 @@ HOW IT WORKS
 • Choose how many claps (2 to 10), how sensitive it is, and which sound plays: a tone from your phone or any audio file.
 • Tap ARM. A notification shows that it is listening.
 • While the screen is off, the microphone listens for your exact clap count. Four claps will not answer a three-clap code.
-• On a match the alarm loops on the alarm channel at full volume, so silent and vibrate modes do not mute it. Unlock the phone or tap Stop to silence it.
+• On a match the alarm loops on the alarm channel at full volume, so silent and vibrate modes do not mute it. Unlock the phone, tap Stop, or clap twice to silence it. The alarm pauses for a second between replays and, on phones that cannot filter it out of the microphone, for a few seconds at a time, so the app can hear you; clap twice during the quiet.
 • Turn the screen on and it stops listening at once.
 • Test it first. The main screen shows a live waveform and tells you when your clap code is recognized.
 
@@ -79,7 +79,7 @@ Prefer a whistle? Record it once and the app listens for that instead of claps.
 ### What's new, first release (en-US, ≤ 500)
 
 ~~~
-First release. Clap a number of times you choose while the screen is off and your phone sounds an alarm you choose until you unlock it. Live waveform to test your claps. No account, no ads, no internet access.
+First release. Clap a number of times you choose while the screen is off and your phone sounds an alarm you choose. Clap twice, unlock, or tap Stop to silence it. Live waveform to test your claps. No account, no ads, no internet access.
 ~~~
 
 ## Graphics
@@ -160,7 +160,7 @@ Declare type **Microphone** (`FOREGROUND_SERVICE_MICROPHONE`).
 **Use case (paste):**
 
 ~~~
-The Clappiest helps users find a lost phone. After the user taps ARM, a foreground service listens through the microphone while the screen is off for a clap pattern the user configured, then plays a user-chosen alarm. The service is started only by an explicit user action in the visible app, shows a persistent notification for as long as it runs, and stops when the user taps DISARM or turns the screen on. Audio is analyzed in memory in real time and is neither stored nor transmitted; the app has no internet permission. Without a foreground microphone service Android would stop the microphone as soon as the screen turns off, which is the only moment the feature is needed.
+The Clappiest helps users find a lost phone. After the user taps ARM, a foreground service listens through the microphone while the screen is off for a clap pattern the user configured, then plays a user-chosen alarm. The service is started only by an explicit user action in the visible app, shows a persistent notification for as long as it runs, and stops when the user taps DISARM or turns the screen on. Audio is analyzed in memory in real time and is neither stored nor transmitted; the app has no internet permission. While the alarm sounds, the same service briefly listens for two claps so the user can silence it hands-free. Without a foreground microphone service Android would stop the microphone as soon as the screen turns off, which is the only moment the feature is needed.
 ~~~
 
 **Demo video** (30 to 60 seconds, unlisted YouTube link, no narration needed):
@@ -170,7 +170,7 @@ The Clappiest helps users find a lost phone. After the user taps ARM, a foregrou
 3. Pull down the shade: show the persistent "Listening in the dark" notification.
 4. Lock the phone.
 5. Clap the configured count.
-6. Show the alarm notification; unlock; the alarm stops.
+6. Show the alarm notification. Either clap twice during a quiet gap or unlock; the alarm stops.
 7. Reopen the app and tap DISARM; show the notification disappear.
 
 ## Testing requirement

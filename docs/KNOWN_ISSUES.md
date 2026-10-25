@@ -6,6 +6,15 @@ Verified 2026-10-24 against `main` at 0.1.8 (`dedef62`) and the published APK. S
 
 Clap mode has never run on a physical device. Everything below that concerns it is from code reading and synthetic audio. The pipeline built and published 0.1.1–0.1.8. No CI runs the unit tests.
 
+## Unverified design choices
+
+- **Clap-to-silence timings** (`ALARM_LEAD_MS` 4 s, window 3 s, alarm 3.5 s, settle 400 ms) are estimates. Too short a window and the user cannot react; too long and the alarm is hard to follow to the phone. T28–T31.
+- **The window mute depends on the speaker's tail ending inside the 400 ms settle.** A long reverberant room, or a slow audio route (Bluetooth), may leave residual sound that the detector treats as background or a clap.
+- **Echo cancellation is device-dependent.** Android's echo canceller needs a reference of what the phone is playing; many phones only wire that up in call mode, so it may do nothing for an alarm. The app tests this itself ([DETECTION.md](DETECTION.md)); the test is untried on any device. If it wrongly says "cancelled", claps over the alarm are missed; if it wrongly says "not cancelled", the alarm pauses more than needed.
+- **`VOICE_COMMUNICATION` may side-effect.** Its noise suppression and gain control can flatten claps, and on some phones a capture in this mode changes the speaker's processing or level. T39.
+- **Percussive alarm sounds** can be heard as claps by the always-on detector; two in 1.2 s silence the alarm. T38.
+- **Clap-to-silence is a short-pause alarm.** A user who finds the phone by following an unbroken tone gets gaps; the setting turns this off.
+
 ## Reported, unconfirmed
 
 ### R1. Lock screen skipped when the screen turns on (user report, 2026-10-24)

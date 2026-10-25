@@ -37,6 +37,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -98,6 +99,7 @@ private fun Screen(prefs: Prefs) {
     var sound by remember { mutableStateOf(prefs.alarmUri) }
     var isRecording by remember { mutableStateOf(false) }
     var hasCustomSound by remember { mutableStateOf(prefs.customSoundBytes != null) }
+    var clapToStop by remember { mutableStateOf(prefs.clapToStop) }
     var denied by remember { mutableStateOf(false) }
     val armed = ListenerService.running
 
@@ -366,6 +368,20 @@ private fun Screen(prefs: Prefs) {
                     )
                 }) { Text("System") }
                 OutlinedButton(onClick = { filePicker.launch(arrayOf("audio/*")) }) { Text("File") }
+            }
+        }
+
+        Section("Silence") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Clap twice to silence the alarm", fontSize = 16.sp, modifier = Modifier.weight(1f))
+                Switch(checked = clapToStop, onCheckedChange = { clapToStop = it; prefs.clapToStop = it })
+            }
+            if (clapToStop) {
+                Text(
+                    "The alarm pauses briefly to listen.",
+                    color = MaterialTheme.colorScheme.secondary,
+                    fontSize = 12.sp,
+                )
             }
         }
 

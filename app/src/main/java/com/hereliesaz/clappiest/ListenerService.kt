@@ -14,11 +14,13 @@ import android.content.pm.ServiceInfo
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.media.audiofx.AcousticEchoCanceler
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
+import android.os.SystemClock
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -33,7 +35,11 @@ import androidx.core.content.ContextCompat
  *  screen off  -> start recording, feed [ClapDetector] or [CustomSoundDetector]
  *  screen on   -> stop recording (the phone is evidently not lost)
  *  match       -> stop recording, sound [AlarmPlayer], post alarm notification
- *  unlock / Stop action -> silence; resume listening when the screen next goes dark
+ *  alarming    -> pulse: sound, then a muted window in which two claps silence it
+ *  unlock / Stop action / two claps -> silence; resume listening when the screen is dark
+ *
+ * The alarm is muted during each window because it plays at full volume beside the microphone
+ * and would otherwise drown out a clap.
  *
  * Must be started from the foreground (Android 11+ microphone rule). Hence START_NOT_STICKY:
  * the system may not restart a microphone service from the background anyway.
@@ -47,11 +53,22 @@ class ListenerService : Service() {
 
     @Volatile private var recordThread: Thread? = null
 
+    /** Written on the main thread, read by the dismiss thread. */
+    @Volatile private var windowOpen = false
+    /** True only while the dismiss microphone is actually recording; never mute without it. */
+    @Volatile private var dismissReady = false
+    /** The alarm is between replays. */
+    @Volatile private var gapQuiet = false
+    /** `SystemClock.elapsedRealtime()` of the last change between sounding and silent. */
+    @Volatile private var stateSince = 0L
+    @Volatile private var dismissMode = MODE_WINDOWS
+
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 Intent.ACTION_SCREEN_OFF -> if (!alarm.isPlaying) startListening()
-                Intent.ACTION_SCREEN_ON -> stopListening()
+                // A sounding alarm keeps its own listener; only the find-the-phone listener stops.
+                Intent.ACTION_SCREEN_ON -> if (!alarm.isPlaying) stopListening()
                 Intent.ACTION_USER_PRESENT -> silence()
             }
         }
@@ -88,6 +105,8 @@ class ListenerService : Service() {
             )
             running = true
         }
+        // A sounding alarm must not be interrupted by a settings refresh.
+        if (alarm.isPlaying) return START_NOT_STICKY
         // Settings may have changed; restart the detector with fresh values.
         stopListening()
         if (!getSystemService(PowerManager::class.java).isInteractive) startListening()
@@ -124,25 +143,7 @@ class ListenerService : Service() {
             .apply { acquire() }
 
         recordThread = Thread({
-            val minBuf = AudioRecord.getMinBufferSize(
-                SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
-            )
-            // VOICE_RECOGNITION skips the noise suppression and AGC that MIC applies on most phones;
-            // both flatten exactly the transients a clap or whistle is made of.
-            val rec = listOf(
-                MediaRecorder.AudioSource.VOICE_RECOGNITION,
-                MediaRecorder.AudioSource.MIC,
-            ).firstNotNullOfOrNull { source ->
-                runCatching {
-                    AudioRecord(
-                        source, SAMPLE_RATE,
-                        AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
-                        maxOf(minBuf, SAMPLE_RATE / 5),
-                    )
-                }.getOrNull()?.let { r ->
-                    if (r.state == AudioRecord.STATE_INITIALIZED) r else { r.release(); null }
-                }
-            } ?: return@Thread
+            val rec = openRecorder() ?: return@Thread
             val buf = ShortArray(SAMPLE_RATE / 50)
             try {
                 rec.startRecording()
@@ -167,6 +168,31 @@ class ListenerService : Service() {
         }, "clap-listener").apply { start() }
     }
 
+    /**
+     * Opens the microphone. VOICE_RECOGNITION skips the noise suppression and AGC that MIC applies
+     * on most phones; both flatten exactly the transients a clap or whistle is made of.
+     */
+    @SuppressLint("MissingPermission") // Checked in MainActivity before the service starts.
+    private fun openRecorder(): AudioRecord? {
+        val minBuf = AudioRecord.getMinBufferSize(
+            SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
+        )
+        return listOf(
+            MediaRecorder.AudioSource.VOICE_RECOGNITION,
+            MediaRecorder.AudioSource.MIC,
+        ).firstNotNullOfOrNull { source ->
+            runCatching {
+                AudioRecord(
+                    source, SAMPLE_RATE,
+                    AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
+                    maxOf(minBuf, SAMPLE_RATE / 5),
+                )
+            }.getOrNull()?.let { r ->
+                if (r.state == AudioRecord.STATE_INITIALIZED) r else { r.release(); null }
+            }
+        }
+    }
+
     private fun stopListening() {
         val t = recordThread ?: return
         recordThread = null
@@ -177,12 +203,177 @@ class ListenerService : Service() {
 
     private fun onMatch() {
         stopListening()
-        alarm.start(prefs.alarmUri)
+        if (prefs.clapToStop) {
+            alarm.start(prefs.alarmUri, REPLAY_GAP_MS) { sounding ->
+                gapQuiet = !sounding
+                stateSince = SystemClock.elapsedRealtime()
+            }
+        } else {
+            alarm.start(prefs.alarmUri)
+        }
         getSystemService(NotificationManager::class.java).notify(NOTIF_ALARM, alarmNotification())
+        if (prefs.clapToStop) beginDismissCycle()
+    }
+
+    /**
+     * While the alarm sounds, listens for [DISMISS_CLAPS] claps.
+     *
+     * The alarm plays at full volume beside the microphone, so the microphone is opened with echo
+     * cancellation where the phone offers it. The alarm also pauses [REPLAY_GAP_MS] between
+     * replays. Whether cancellation actually works is measured, not assumed ([EchoGuard]):
+     *
+     *  - [MODE_CALIBRATING]: one forced silent window at [ALARM_LEAD_MS] gives the guard a
+     *    quiet reference; claps are heard in silent moments only.
+     *  - [MODE_CONTINUOUS]: the guard found the alarm cancelled; claps are heard over it and no
+     *    more windows are forced.
+     *  - [MODE_WINDOWS]: no cancellation, or it failed the test; the alarm is muted for a window
+     *    every [ALARM_ON_MS] and claps are heard only in silent moments.
+     */
+    @SuppressLint("MissingPermission") // Checked in MainActivity before the service starts.
+    private fun beginDismissCycle() {
+        if (recordThread != null) return
+        wakeLock = getSystemService(PowerManager::class.java)
+            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "clappiest:dismiss")
+            .apply { acquire() }
+        windowOpen = false
+        stateSince = SystemClock.elapsedRealtime()
+        recordThread = Thread({
+            val mic = openDismissRecorder() ?: return@Thread
+            val rec = mic.record
+            dismissMode = if (mic.mayCancel) MODE_CALIBRATING else MODE_WINDOWS
+            val guard = EchoGuard()
+            // Heard only in silent moments, against a quiet room.
+            val windowDetector = ClapDetector(SAMPLE_RATE, DISMISS_CLAPS, prefs.sensitivity, finishOnTarget = true)
+            // Heard over a cancelled alarm: judged against the alarm's own level.
+            val liveDetector = ClapDetector(
+                SAMPLE_RATE, DISMISS_CLAPS, prefs.sensitivity, finishOnTarget = true, fastFloor = true,
+            )
+            val buf = ShortArray(SAMPLE_RATE / 50)
+            val blockMs = 1000 / 50
+            var wasQuiet = false
+            try {
+                rec.startRecording()
+                dismissReady = true
+                val me = Thread.currentThread()
+                while (recordThread === me) {
+                    val n = rec.read(buf, 0, buf.size)
+                    if (n < 0) break
+                    val quiet = windowOpen || gapQuiet
+                    val settled = SystemClock.elapsedRealtime() - stateSince >= WINDOW_SETTLE_MS
+
+                    if (mic.mayCancel && dismissMode == MODE_CALIBRATING) {
+                        if (settled) guard.add(rmsOf(buf, n), blockMs, sounding = !quiet)
+                        when (guard.verdict) {
+                            EchoGuard.Verdict.CANCELLED -> dismissMode = MODE_CONTINUOUS
+                            EchoGuard.Verdict.NOT_CANCELLED -> dismissMode = MODE_WINDOWS
+                            EchoGuard.Verdict.UNKNOWN -> Unit
+                        }
+                    }
+
+                    val hit = if (dismissMode == MODE_CONTINUOUS) {
+                        // Always fed so its floor tracks the alarm; edges are ignored by `settled`.
+                        liveDetector.process(buf, n) && settled
+                    } else {
+                        if (!quiet) { wasQuiet = false; continue } // hear nothing while it sounds
+                        if (!wasQuiet) { wasQuiet = true; windowDetector.reset() }
+                        settled && windowDetector.process(buf, n)
+                    }
+                    if (hit) {
+                        main.post { silence() }
+                        break
+                    }
+                }
+            } finally {
+                dismissReady = false
+                runCatching { rec.stop() }
+                rec.release()
+                mic.echo?.release()
+            }
+        }, "clap-dismiss").apply { start() }
+        main.postDelayed(openWindow, ALARM_LEAD_MS)
+    }
+
+    private class DismissMic(
+        val record: AudioRecord,
+        val echo: AcousticEchoCanceler?,
+        /** The phone may be cancelling the alarm: worth testing. */
+        val mayCancel: Boolean,
+    )
+
+    /**
+     * Opens the microphone for use while the alarm sounds. VOICE_COMMUNICATION is the source
+     * vendors tune echo cancellation for, so it is tried first; an explicit canceller is attached
+     * where the phone offers one.
+     */
+    @SuppressLint("MissingPermission") // Checked in MainActivity before the service starts.
+    private fun openDismissRecorder(): DismissMic? {
+        val minBuf = AudioRecord.getMinBufferSize(
+            SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
+        )
+        val sources = listOf(
+            MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+            MediaRecorder.AudioSource.VOICE_RECOGNITION,
+            MediaRecorder.AudioSource.MIC,
+        )
+        for (source in sources) {
+            val r = runCatching {
+                AudioRecord(
+                    source, SAMPLE_RATE,
+                    AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
+                    maxOf(minBuf, SAMPLE_RATE / 5),
+                )
+            }.getOrNull() ?: continue
+            if (r.state != AudioRecord.STATE_INITIALIZED) { r.release(); continue }
+            val echo = if (AcousticEchoCanceler.isAvailable()) {
+                runCatching {
+                    AcousticEchoCanceler.create(r.audioSessionId)?.also { it.setEnabled(true) }
+                }.getOrNull()
+            } else null
+            val mayCancel = source == MediaRecorder.AudioSource.VOICE_COMMUNICATION ||
+                echo?.enabled == true
+            return DismissMic(r, echo, mayCancel)
+        }
+        return null
+    }
+
+    private fun rmsOf(buf: ShortArray, n: Int): Float {
+        var sum = 0.0
+        for (i in 0 until n) { val v = buf[i].toDouble(); sum += v * v }
+        return if (n > 0) kotlin.math.sqrt(sum / n).toFloat() else 0f
+    }
+
+    private val openWindow: Runnable = Runnable {
+        if (!alarm.isPlaying || dismissMode == MODE_CONTINUOUS) return@Runnable
+        if (!dismissReady) { // Nothing is listening: keep the alarm loud and look again later.
+            main.postDelayed(openWindow, ALARM_ON_MS)
+            return@Runnable
+        }
+        alarm.mute(true)
+        windowOpen = true
+        stateSince = SystemClock.elapsedRealtime()
+        main.postDelayed(closeWindow, DISMISS_WINDOW_MS)
+    }
+
+    private val closeWindow: Runnable = Runnable {
+        windowOpen = false
+        stateSince = SystemClock.elapsedRealtime()
+        if (!alarm.isPlaying) return@Runnable
+        alarm.mute(false)
+        if (dismissMode != MODE_CONTINUOUS) main.postDelayed(openWindow, ALARM_ON_MS)
+    }
+
+    private fun endDismissCycle() {
+        main.removeCallbacks(openWindow)
+        main.removeCallbacks(closeWindow)
+        windowOpen = false
+        gapQuiet = false
+        dismissReady = false
+        stopListening()
     }
 
     private fun silence() {
         if (!alarm.isPlaying) return
+        endDismissCycle()
         alarm.stop()
         getSystemService(NotificationManager::class.java).cancel(NOTIF_ALARM)
         if (running && !getSystemService(PowerManager::class.java).isInteractive) startListening()
@@ -224,7 +415,10 @@ class ListenerService : Service() {
         NotificationCompat.Builder(this, CH_ALARM)
             .setSmallIcon(R.drawable.ic_clap)
             .setContentTitle("Here I am")
-            .setContentText("Unlock or tap Stop.")
+            .setContentText(
+                if (prefs.clapToStop) "Unlock, tap Stop, or clap twice when it goes quiet."
+                else "Unlock or tap Stop."
+            )
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setContentIntent(silenceIntent())
@@ -234,6 +428,24 @@ class ListenerService : Service() {
 
     companion object {
         const val SAMPLE_RATE = 16_000
+
+        private const val MODE_WINDOWS = 0
+        private const val MODE_CALIBRATING = 1
+        private const val MODE_CONTINUOUS = 2
+
+        /** Silence between replays of the alarm sound while clap-to-silence is on. */
+        private const val REPLAY_GAP_MS = 1_000L
+
+        /** Claps that silence the alarm. */
+        private const val DISMISS_CLAPS = 2
+        /** Unbroken alarm before the first listening window. */
+        private const val ALARM_LEAD_MS = 4_000L
+        /** Alarm between listening windows. */
+        private const val ALARM_ON_MS = 3_500L
+        /** Muted window; room for the user to react and clap twice. */
+        private const val DISMISS_WINDOW_MS = 3_000L
+        /** Ignored after the alarm starts or stops while the speaker's tail dies. */
+        private const val WINDOW_SETTLE_MS = 400L
         private const val CH_LISTEN = "listen"
         private const val CH_ALARM = "alarm"
         private const val NOTIF_LISTENING = 1

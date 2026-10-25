@@ -2,7 +2,7 @@
 
 ## What it does
 
-Arm the app. When the screen is off it listens for your clap code. On a match it plays your chosen sound at full alarm volume until you unlock the phone or tap **Stop**.
+Arm the app. When the screen is off it listens for your clap code. On a match it plays your chosen sound at full alarm volume until you unlock the phone, tap **Stop**, or clap twice.
 
 It listens **only while the screen is off**. Turn the screen on and the microphone is released.
 
@@ -12,7 +12,8 @@ It listens **only while the screen is off**. Turn the screen on and the micropho
 2. **Claps**: choose 2 to 10. The count must match exactly: four claps do not answer a three-clap code.
 3. **Sensitivity**: higher hears softer and more distant claps, and is easier to fool.
 4. **Sound**: **System** picks a tone from your phone. **File** picks any audio file. The file is not copied; if you delete or move it, the default alarm plays instead.
-5. Tap **ARM**. Allow the microphone and notifications when asked.
+5. **Silence**: leave "Clap twice to silence the alarm" on to stop the alarm by clapping (see below), or turn it off for an unbroken alarm.
+6. Tap **ARM**. Allow the microphone and notifications when asked.
 
 A notification stays visible while armed. Android requires it; it cannot be hidden.
 
@@ -24,7 +25,25 @@ While disarmed, the main screen shows a live waveform. Clap near the phone. The 
 
 1. Give it a couple of seconds after the screen turns off.
 2. Clap your code, about a third of a second between claps.
-3. The alarm plays. Unlock the phone or tap **Stop** to silence it. It then resumes listening when the screen next goes dark.
+3. The alarm plays. Unlock the phone, tap **Stop**, or clap twice to silence it. It then resumes listening when the screen next goes dark.
+
+### Silencing with two claps
+
+The alarm is loud and sits right beside the microphone, which makes claps hard to hear. The app handles this in two ways:
+
+- **It pauses for one second between replays** of the sound, and listens in the quiet.
+- **It tries to cancel the alarm out of the microphone** using the phone's built-in echo cancellation, and tests at the start of every alarm whether that worked on your phone.
+
+What you will notice depends on the result:
+
+| Your phone | Behaviour | How to clap |
+|---|---|---|
+| Cancels the alarm well | Alarm plays normally, with a one-second pause between replays | Clap twice, short pause between, **any time** |
+| Does not cancel it | The alarm also goes **quiet for about 3 seconds** every 7 seconds or so | Clap twice **while it is quiet**; claps made while it sounds are not heard |
+
+- Clapping while it sounds may or may not work. If nothing happens, wait for a quiet moment.
+- If the alarm stops and stays quiet after your claps, it worked.
+- Prefer an unbroken alarm? Turn off "Clap twice to silence the alarm". Unlock and **Stop** still work.
 
 ## Disarm
 
@@ -52,6 +71,9 @@ The alarm sets the alarm volume to maximum and restores your setting afterwards.
 | Stops after a phone call | Another app had the microphone | Open the app and re-arm |
 | "No microphone, no miracle." | Permission denied | Settings → Apps → The Clappiest → Permissions → Microphone |
 | Silent alarm | Chosen file missing or unsupported | Pick a System sound; the default alarm is the fallback |
+| Two claps don't silence it | Clapped while the alarm was sounding on a phone that cannot cancel it; sensitivity too low; too far away | Clap during a quiet moment, closer, or raise sensitivity |
+| Alarm silences itself unexpectedly | A percussive alarm sound sounds like claps to the detector | Choose a smoother sound, lower sensitivity, or turn off clap-to-silence |
+| Alarm keeps pausing | Clap-to-silence is on | Turn it off for an unbroken alarm |
 
 ## Privacy
 
