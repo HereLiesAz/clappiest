@@ -75,9 +75,15 @@ The alarm sets the alarm volume to maximum and restores your setting afterwards.
 | Alarm silences itself unexpectedly | A percussive alarm sound sounds like claps to the detector | Choose a smoother sound, lower sensitivity, or turn off clap-to-silence |
 | Alarm keeps pausing | Clap-to-silence is on | Turn it off for an unbroken alarm |
 
+## Updates
+
+When you open the app it asks GitHub whether a newer version exists (at most every 12 hours). If so, a popup says so. **Update** opens Google Play if Google Play installed the app, otherwise the GitHub release page. **Later** hides that version for three days. Google Play can take a little while to show a version GitHub already has.
+
+Turn it off with **Check for updates** on the main screen. The app then makes no network requests at all.
+
 ## Privacy
 
-Audio is analysed in memory and discarded. The app has no internet permission. See [PRIVACY_POLICY.md](PRIVACY_POLICY.md).
+Audio is analysed in memory and discarded; it never leaves the phone. The only network request is the update check. See [PRIVACY_POLICY.md](PRIVACY_POLICY.md).
 
 ## Custom sound mode
 

@@ -25,6 +25,10 @@ Silence the alarm by unlocking the phone, tapping **Stop** on the notification, 
 | `Prefs.kt` | Clap count, sensitivity, sound URI. |
 | `MainActivity.kt` | Compose settings screen and arm switch. |
 
+## Updates
+
+On open, the app asks GitHub for the latest release (at most every 12 hours) and shows a popup when a newer version exists. **Update** opens Google Play or the GitHub release, whichever it was installed from. Switch it off with "Check for updates"; it then makes no network requests. This is the app's only network use; audio never leaves the phone.
+
 ## Limits
 
 - Android forbids starting microphone services from the background, so after a reboot or the app being killed, open it and re-arm.

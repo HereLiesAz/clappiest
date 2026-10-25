@@ -1,9 +1,10 @@
 # Permissions
 
-Verified against the shipped 0.1.8 APK (`aapt2 dump permissions`). The app declares **no** `INTERNET` permission.
+Verified against the built release APK (`aapt2 dump permissions`). Audio never leaves the device. The single network use is the update check ([PRIVACY_POLICY.md](PRIVACY_POLICY.md)).
 
 | Permission | Type | Why | Without it |
 |---|---|---|---|
+| `INTERNET` | Normal | The update check: one HTTPS GET to `api.github.com` when the app is opened, at most every 12 hours, user-switchable | The update popup never appears; nothing else changes |
 | `RECORD_AUDIO` | Runtime, dangerous | Listen for the clap code | App cannot function; UI shows "No microphone, no miracle." |
 | `FOREGROUND_SERVICE` | Normal | Run `ListenerService` in the foreground | Service cannot start |
 | `FOREGROUND_SERVICE_MICROPHONE` | Normal (API 34+) | Required for a foreground service of type `microphone` | Service crashes on API 34+ when it starts |
@@ -19,7 +20,7 @@ Verified against the shipped 0.1.8 APK (`aapt2 dump permissions`). The app decla
 
 | Permission | Reason not needed |
 |---|---|
-| `INTERNET` / `ACCESS_NETWORK_STATE` | Nothing is sent or fetched |
+| `ACCESS_NETWORK_STATE` | The check simply fails quietly when offline |
 | `READ_EXTERNAL_STORAGE` / `READ_MEDIA_AUDIO` | The system file picker (`OpenDocument`) grants access to the one chosen file |
 | `RECEIVE_BOOT_COMPLETED` | A microphone foreground service cannot start from boot (Android 11+) |
 | `USE_FULL_SCREEN_INTENT`, `SYSTEM_ALERT_WINDOW` | The alarm needs only sound and a notification |

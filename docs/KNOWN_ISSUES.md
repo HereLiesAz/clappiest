@@ -12,6 +12,8 @@ Clap mode has never run on a physical device. Everything below that concerns it 
 - **The window mute depends on the speaker's tail ending inside the 400 ms settle.** A long reverberant room, or a slow audio route (Bluetooth), may leave residual sound that the detector treats as background or a clap.
 - **Echo cancellation is device-dependent.** Android's echo canceller needs a reference of what the phone is playing; many phones only wire that up in call mode, so it may do nothing for an alarm. The app tests this itself ([DETECTION.md](DETECTION.md)); the test is untried on any device. If it wrongly says "cancelled", claps over the alarm are missed; if it wrongly says "not cancelled", the alarm pauses more than needed.
 - **`VOICE_COMMUNICATION` may side-effect.** Its noise suppression and gain control can flatten claps, and on some phones a capture in this mode changes the speaker's processing or level. T39.
+- **Update popup timing.** Play can lag GitHub by its review time, so a Play user can be told about a version not yet in Play (the popup says so). The check runs only when the app is opened, never in the background. Unauthenticated GitHub API calls are limited to 60 an hour per IP; with a 12-hour throttle that only matters behind a very large shared address. T40–T45.
+- **Play Data safety and the update check.** See [PLAY_STORE_LISTING.md](PLAY_STORE_LISTING.md): whether Google counts the request's incidental IP address needs checking against current guidance.
 - **Percussive alarm sounds** can be heard as claps by the always-on detector; two in 1.2 s silence the alarm. T38.
 - **Clap-to-silence is a short-pause alarm.** A user who finds the phone by following an unbroken tone gets gaps; the setting turns this off.
 

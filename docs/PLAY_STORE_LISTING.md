@@ -16,7 +16,7 @@ Everything needed to take *The Clappiest* from draft to published. Character lim
 | 4 | Ads | App content | Ready: No |
 | 5 | Content rating | App content | Ready (below) |
 | 6 | Target audience | App content | Ready (below) |
-| 7 | Data safety | App content | Ready (below) |
+| 7 | Data safety | App content | Ready; **verify the IP-address question first** (below) |
 | 8 | Foreground service permissions | App content | Ready; **needs a demo video** |
 | 9 | Government / financial / health / news declarations | App content | All No |
 | 10 | Advertising ID | App content | No |
@@ -30,7 +30,7 @@ Everything needed to take *The Clappiest* from draft to published. Character lim
 | Field | Value | Limit |
 |---|---|---|
 | App name | The Clappiest | 13 / 30 |
-| Short description | Clap to find your phone. Works with the screen off. No account, no internet. | 76 / 80 |
+| Short description | Clap to find your phone. Works with the screen off. No account, no tracking. | 76 / 80 |
 | Category | Tools | |
 | Type | App | |
 | Price | Free | |
@@ -40,7 +40,7 @@ Everything needed to take *The Clappiest* from draft to published. Character lim
 | Email | **[add]** | |
 | Privacy policy URL | **[add]** | |
 
-### Full description (en-US, 1,849 / 4,000)
+### Full description (en-US, 2,098 / 4,000)
 
 ~~~
 Lost in the dark, found by applause.
@@ -58,11 +58,12 @@ HOW IT WORKS
 PRIVATE BY DESIGN
 • Sound is analyzed on your phone, in memory, and thrown away. Nothing is recorded or saved.
 • No account. No ads. No analytics.
-• The app has no internet permission, so it cannot send anything anywhere.
+• Your audio never leaves the phone. The only thing the app ever sends is a "newer version?" request to GitHub when you open it, which you can turn off.
 
 GOOD TO KNOW
 • Android requires a visible notification while an app listens in the background. The app shows one while armed.
 • After a restart, or if your phone's battery saver stops the app, open it and tap ARM again. For best results, set the app's battery usage to Unrestricted.
+• When a newer version is out, the app tells you and points you to Google Play or GitHub, wherever you installed it from. Google Play can take a little while to catch up.
 • The alarm raises the alarm volume to maximum and restores it afterwards. Keep headphones out of your ears while it is armed.
 • Loud rooms and muffled pockets can hide a clap. Use the live waveform to check how well it hears you.
 
@@ -79,7 +80,7 @@ Prefer a whistle? Record it once and the app listens for that instead of claps.
 ### What's new, first release (en-US, ≤ 500)
 
 ~~~
-First release. Clap a number of times you choose while the screen is off and your phone sounds an alarm you choose. Clap twice, unlock, or tap Stop to silence it. Live waveform to test your claps. No account, no ads, no internet access.
+First release. Clap a number of times you choose while the screen is off and your phone sounds an alarm you choose. Clap twice, unlock, or tap Stop to silence it. Live waveform to test your claps. Tells you when an update is out. No account, no ads, no tracking.
 ~~~
 
 ## Graphics
@@ -142,16 +143,18 @@ No account is needed. Open the app, tap ARM, and allow the microphone and notifi
 
 ## Data safety
 
-Google defines "collect" as transmitting data off the device. The app transmits nothing and has no `INTERNET` permission. Audio is processed ephemerally in memory.
+Google defines "collect" as transmitting data off the device. Audio is processed ephemerally in memory and never transmitted. The one network request is the update check to `api.github.com` (HTTPS GET, at most every 12 hours, user can turn it off). It carries no account, advertising or device identifier, no audio and no settings; the server necessarily sees the phone's IP address and a User-Agent of the form `Clappiest/<version> (Android)`.
 
-| Question | Answer |
+| Question | Suggested answer |
 |---|---|
-| Does your app collect or share any of the required user data types? | **No** |
-| Is all data encrypted in transit? | Not applicable (no data leaves the device) |
-| Do you provide a way to request data deletion? | Not applicable |
+| Does your app collect or share any of the required user data types? | **No**, for the reasons above |
+| Is all data encrypted in transit? | Yes (HTTPS only; cleartext is blocked) |
+| Do you provide a way to request data deletion? | Not applicable (nothing is held) |
 | Data types | None selected |
 
-Re-check this section whenever a dependency, permission or network feature is added.
+**Verify before submitting.** The form has no "IP address" type, and I have not confirmed how Google treats the incidental IP address of a request to a third-party API. Read the current Data safety help text ("Data collection and sharing"). If Google counts it, the conservative disclosure is to declare the data type Google maps it to, as collected, not shared, optional (the user can turn the check off), purpose "App functionality". Re-check this section whenever a dependency, permission or network feature is added.
+
+**Policy fit.** The app only notifies and links. It never downloads, installs or replaces itself, so it does not conflict with Play's rule that apps distributed on Play update only through Play.
 
 ## Foreground service permissions
 
@@ -160,7 +163,7 @@ Declare type **Microphone** (`FOREGROUND_SERVICE_MICROPHONE`).
 **Use case (paste):**
 
 ~~~
-The Clappiest helps users find a lost phone. After the user taps ARM, a foreground service listens through the microphone while the screen is off for a clap pattern the user configured, then plays a user-chosen alarm. The service is started only by an explicit user action in the visible app, shows a persistent notification for as long as it runs, and stops when the user taps DISARM or turns the screen on. Audio is analyzed in memory in real time and is neither stored nor transmitted; the app has no internet permission. While the alarm sounds, the same service briefly listens for two claps so the user can silence it hands-free. Without a foreground microphone service Android would stop the microphone as soon as the screen turns off, which is the only moment the feature is needed.
+The Clappiest helps users find a lost phone. After the user taps ARM, a foreground service listens through the microphone while the screen is off for a clap pattern the user configured, then plays a user-chosen alarm. The service is started only by an explicit user action in the visible app, shows a persistent notification for as long as it runs, and stops when the user taps DISARM or turns the screen on. Audio is analyzed in memory in real time and is neither stored nor transmitted; audio is never transmitted. While the alarm sounds, the same service briefly listens for two claps so the user can silence it hands-free. Without a foreground microphone service Android would stop the microphone as soon as the screen turns off, which is the only moment the feature is needed.
 ~~~
 
 **Demo video** (30 to 60 seconds, unlisted YouTube link, no narration needed):

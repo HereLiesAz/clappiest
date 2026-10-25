@@ -22,6 +22,31 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("clapToStop", true)
         set(v) = sp.edit { putBoolean("clapToStop", v) }
 
+    /** Whether the app may check GitHub for a newer version when opened. */
+    var updateCheck: Boolean
+        get() = sp.getBoolean("updateCheck", true)
+        set(v) = sp.edit { putBoolean("updateCheck", v) }
+
+    var lastUpdateCheck: Long
+        get() = sp.getLong("lastUpdateCheck", 0L)
+        set(v) = sp.edit { putLong("lastUpdateCheck", v) }
+
+    var latestVersion: String?
+        get() = sp.getString("latestVersion", null)
+        set(v) = sp.edit { putString("latestVersion", v) }
+
+    var latestUrl: String?
+        get() = sp.getString("latestUrl", null)
+        set(v) = sp.edit { putString("latestUrl", v) }
+
+    var snoozedVersion: String?
+        get() = sp.getString("snoozedVersion", null)
+        set(v) = sp.edit { putString("snoozedVersion", v) }
+
+    var snoozedUntil: Long
+        get() = sp.getLong("snoozedUntil", 0L)
+        set(v) = sp.edit { putLong("snoozedUntil", v) }
+
     var triggerMode: String
         get() = sp.getString("triggerMode", "claps") ?: "claps"
         set(v) = sp.edit { putString("triggerMode", v) }

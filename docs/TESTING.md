@@ -57,6 +57,12 @@ Expected results assume clap mode, sensitivity 0.5, 3 claps, unless stated.
 | T37 | Replay gap | Alarm with a short tone, then a 30 s file, then a 4 min song | Gap of about 1 s after each replay; claps in the gap silence it |
 | T38 | Percussive alarm | Use a drum or click-heavy file at sensitivity 0.5 and 1.0, no claps | Alarm not silenced for 2 min; record any false stops |
 | T39 | Alarm loudness | Compare the alarm's loudness with and without the dismiss microphone (sound-level meter or by ear) | No audible drop from opening the microphone as `VOICE_COMMUNICATION` |
+| T40 | Update popup, GitHub install | Install a build with `-PversionNameOverride=0.0.1` by sideloading; open the app online | Popup names the latest version; **Update** opens the GitHub release page |
+| T41 | Update popup, Play install | Install an older build from Play (internal testing); open the app | Popup mentions Google Play; **Update** opens the Play listing |
+| T42 | Later | Tap **Later**; reopen; wait 3 days (or edit `snoozedUntil`) | No popup meanwhile; popup again after; a newer release prompts at once |
+| T43 | Switch off | Turn off "Check for updates"; open the app with a proxy or `adb shell dumpsys netstats` watching | No request to GitHub |
+| T44 | Offline / failure | Airplane mode; GitHub unreachable | No crash, no popup, no delay opening the app |
+| T45 | Throttle | Open the app 5 times within 12 hours | One request only |
 | T27 | Lock-screen integrity | With a PIN/pattern/biometric set: arm → screen off → screen on, repeat 20×; also after an alarm and after **Stop**; then repeat with the app force-stopped | Lock screen appears every time, identically in both conditions (KNOWN_ISSUES R1) |
 
 ## Result log
