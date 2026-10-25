@@ -1,6 +1,6 @@
 # Architecture
 
-Single-module Android app (`:app`), Kotlin, Jetpack Compose. `minSdk 26`, `targetSdk 37`. No network, no database, no third-party SDKs beyond AndroidX/Compose.
+Single-module Android app (`:app`), Kotlin, Jetpack Compose. `minSdk 26`, `targetSdk 37`. No network, no database. Third-party code: AndroidX/Compose, and Google's Play app-update library for the update check.
 
 ## Components
 
@@ -12,6 +12,8 @@ Single-module Android app (`:app`), Kotlin, Jetpack Compose. `minSdk 26`, `targe
 | `ClapDetector.kt` | Pure Kotlin. Counts impulse claps in a PCM stream. |
 | `CustomSoundDetector.kt` | Pure Kotlin. Matches a recorded template against the stream. |
 | `AlarmPlayer.kt` | Loops the chosen sound on the alarm stream at maximum volume; restores volume on stop. |
+| `UpdateChecker.kt` | Asks Google Play (through the Play Store app) whether a newer version exists; opens the Play listing. |
+| `Snooze.kt` | Pure Kotlin. The "Later" rule. |
 | `Prefs.kt` | `SharedPreferences` wrapper: clap count, sensitivity, trigger mode, custom sound bytes, alarm URI. |
 
 ## State machine
@@ -50,6 +52,7 @@ Single-module Android app (`:app`), Kotlin, Jetpack Compose. `minSdk 26`, `targe
 | `clap-dismiss` | Runs for the life of a sounding alarm. Keeps draining the microphone and feeds a `ClapDetector(2 claps, finishOnTarget)` according to the mode above. Occupies `recordThread`, so normal listening cannot start meanwhile. |
 | `live-test-listener` | Activity-owned visualizer loop. Independent of the service. |
 | `sound-recorder` | One-shot 1.5 s template capture. |
+| `update-check` | One call to the Play Store app, at launch, at most every 12 hours. Posts the result to the main thread. |
 
 ### Alarm replay gap, echo cancellation and listening windows
 
@@ -91,11 +94,25 @@ alarm start ──4.0 s── window (mute) ──3.0 s── unmute ── verd
 | `clapCount` | int | 2–10 |
 | `sensitivity` | float | 0–1 |
 | `clapToStop` | boolean | Two claps silence the alarm (default on) |
+| `updateCheck` | boolean | Check for updates (default on) |
+| `lastUpdateCheck` | long | Time of the last completed check |
+| `snoozedKey`, `snoozedUntil` | string, long | "Later": the version code and when it stops being hidden (3 days) |
 | `triggerMode` | string | `claps` or `custom` |
 | `customSound` | string | Base64 of 1.5 s PCM16 mono audio (~64 KB) |
 | `alarmUri` | string | URI of the chosen alarm sound |
 
 A chosen audio file keeps a persisted read grant (`takePersistableUriPermission`). The file is not copied.
+
+## Update check
+
+~~~
+app opened → update-check thread
+  → throttled (12 h since the last completed check)? stop
+  → AppUpdateManager.appUpdateInfo (answered by the Play Store app, not by a request from this app)
+  → UPDATE_AVAILABLE and not snoozed for that version code → popup
+~~~
+
+No `INTERNET` permission is needed or declared. Play answers only for copies it installed (owned by the user's Google account); otherwise the call throws, the check counts as failed, and the user sees nothing. Every merge to `main` publishes to Google Play and GitHub together, so an update on Play means one on GitHub too. Play reports a version code, not a name, so the popup does not name the version. **Update** opens `market://details`, then the web listing. The app never downloads or installs anything. A failed check is retried at the next launch.
 
 ## Build and release
 

@@ -25,6 +25,10 @@ Silence the alarm by unlocking the phone, tapping **Stop** on the notification, 
 | `Prefs.kt` | Clap count, sensitivity, sound URI. |
 | `MainActivity.kt` | Compose settings screen and arm switch. |
 
+## Updates
+
+On open, the app asks Google Play whether a newer version exists (at most every 12 hours) and shows a popup if so; **Update** opens its Play page. The question is answered by the Play Store app, so the app needs no internet permission. It works only for copies installed from Google Play. Switch it off with "Check for updates".
+
 ## Limits
 
 - Android forbids starting microphone services from the background, so after a reboot or the app being killed, open it and re-arm.

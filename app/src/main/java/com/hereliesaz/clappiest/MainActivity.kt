@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -39,9 +40,11 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -100,6 +103,8 @@ private fun Screen(prefs: Prefs) {
     var isRecording by remember { mutableStateOf(false) }
     var hasCustomSound by remember { mutableStateOf(prefs.customSoundBytes != null) }
     var clapToStop by remember { mutableStateOf(prefs.clapToStop) }
+    var updateCheck by remember { mutableStateOf(prefs.updateCheck) }
+    var update by remember { mutableStateOf<UpdateChecker.Update?>(null) }
     var denied by remember { mutableStateOf(false) }
     val armed = ListenerService.running
 
@@ -108,6 +113,14 @@ private fun Screen(prefs: Prefs) {
     var isRecognizedFlash by remember { mutableStateOf(false) }
 
     fun refresh() { if (ListenerService.running) ListenerService.start(ctx) }
+
+    // Once per launch (and at most every 12 hours, see UpdateChecker): ask Google Play for a newer version.
+    LaunchedEffect(Unit) {
+        Thread({
+            val found = UpdateChecker(ctx, prefs).check()
+            if (found != null) Handler(Looper.getMainLooper()).post { update = found }
+        }, "update-check").start()
+    }
 
     // Live test listener when screen / activity is active
     DisposableEffect(triggerMode, prefs.sensitivity, prefs.clapCount, prefs.customSoundBytes) {
@@ -241,6 +254,8 @@ private fun Screen(prefs: Prefs) {
         runCatching { RingtoneManager.getRingtone(ctx, uri)?.getTitle(ctx) }.getOrNull()
             ?: uri?.lastPathSegment ?: "Default alarm"
     }
+
+    update?.let { UpdateDialog(it) { update = null } }
 
     Column(
         Modifier.fillMaxSize().background(Color.Black).safeDrawingPadding().padding(24.dp),
@@ -385,6 +400,19 @@ private fun Screen(prefs: Prefs) {
             }
         }
 
+        Section("Updates") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Check for updates", fontSize = 16.sp, modifier = Modifier.weight(1f))
+                Switch(checked = updateCheck, onCheckedChange = { updateCheck = it; prefs.updateCheck = it })
+            }
+            Text(
+                "Asks Google Play whether a newer version exists when you open the app. " +
+                    "Works for copies installed from Google Play.",
+                color = MaterialTheme.colorScheme.secondary,
+                fontSize = 12.sp,
+            )
+        }
+
         Spacer(Modifier.weight(1f))
 
         if (denied) Text("No microphone, no miracle.", color = MaterialTheme.colorScheme.secondary)
@@ -412,6 +440,26 @@ private fun Screen(prefs: Prefs) {
             color = MaterialTheme.colorScheme.secondary,
         )
     }
+}
+
+/** The "update available" popup. Plays no part in listening; it only points the user at the update. */
+@Composable
+private fun UpdateDialog(update: UpdateChecker.Update, onDone: () -> Unit) {
+    val ctx = LocalContext.current
+    fun later() {
+        UpdateChecker(ctx, Prefs(ctx)).snooze(update)
+        onDone()
+    }
+    AlertDialog(
+        onDismissRequest = ::later,
+        containerColor = Color(0xFF111111),
+        title = { Text("Update available") },
+        text = { Text("A new version is available on Google Play.") },
+        confirmButton = {
+            TextButton(onClick = { UpdateChecker(ctx, Prefs(ctx)).open(); onDone() }) { Text("Update") }
+        },
+        dismissButton = { TextButton(onClick = ::later) { Text("Later") } },
+    )
 }
 
 @Composable

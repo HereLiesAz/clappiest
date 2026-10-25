@@ -21,6 +21,7 @@
 |---|---|
 | Clap mode | Implemented. JVM-tested. **Not yet verified on a device.** |
 | Custom-sound mode | Implemented. **Does not work reliably**; see KNOWN_ISSUES #1. |
+| Update popup | Implemented. Asks Google Play (no internet permission); Play-installed copies only. **Not yet verified on a device.** |
 | GitHub Releases | Automatic on every merge to `main` touching the app. |
 | Google Play | Builds reach `internal` and `alpha` as drafts. `beta` and `production` blocked until the store listing is complete. |
 | Privacy policy | Drafted. Needs a public URL and a contact email. |

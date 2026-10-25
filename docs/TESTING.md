@@ -57,6 +57,12 @@ Expected results assume clap mode, sensitivity 0.5, 3 claps, unless stated.
 | T37 | Replay gap | Alarm with a short tone, then a 30 s file, then a 4 min song | Gap of about 1 s after each replay; claps in the gap silence it |
 | T38 | Percussive alarm | Use a drum or click-heavy file at sensitivity 0.5 and 1.0, no claps | Alarm not silenced for 2 min; record any false stops |
 | T39 | Alarm loudness | Compare the alarm's loudness with and without the dismiss microphone (sound-level meter or by ear) | No audible drop from opening the microphone as `VOICE_COMMUNICATION` |
+| T40 | Update popup | Install an older build from Google Play (internal testing); publish a newer one; open the app | Popup "A new version is available on Google Play"; **Update** opens the Play listing |
+| T41 | Later | Tap **Later**; reopen; wait 3 days (or edit `snoozedUntil`) | No popup meanwhile; popup again after; a newer version asks at once |
+| T42 | Switch off | Turn off "Check for updates"; open the app | No popup, no Play call |
+| T43 | Not installed by Play | Sideload the GitHub APK; open the app | No popup, no crash, no delay opening the app |
+| T44 | Throttle | Open the app 5 times within 12 hours | Play asked once |
+| T45 | No internet permission | `aapt2 dump permissions` on the release APK | `INTERNET` absent |
 | T27 | Lock-screen integrity | With a PIN/pattern/biometric set: arm → screen off → screen on, repeat 20×; also after an alarm and after **Stop**; then repeat with the app force-stopped | Lock screen appears every time, identically in both conditions (KNOWN_ISSUES R1) |
 
 ## Result log

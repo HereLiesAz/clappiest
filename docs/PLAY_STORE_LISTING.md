@@ -40,7 +40,7 @@ Everything needed to take *The Clappiest* from draft to published. Character lim
 | Email | **[add]** | |
 | Privacy policy URL | **[add]** | |
 
-### Full description (en-US, 1,849 / 4,000)
+### Full description (en-US, 1,927 / 4,000)
 
 ~~~
 Lost in the dark, found by applause.
@@ -63,6 +63,7 @@ PRIVATE BY DESIGN
 GOOD TO KNOW
 • Android requires a visible notification while an app listens in the background. The app shows one while armed.
 • After a restart, or if your phone's battery saver stops the app, open it and tap ARM again. For best results, set the app's battery usage to Unrestricted.
+• When a newer version is on Google Play, the app tells you when you open it.
 • The alarm raises the alarm volume to maximum and restores it afterwards. Keep headphones out of your ears while it is armed.
 • Loud rooms and muffled pockets can hide a clap. Use the live waveform to check how well it hears you.
 
@@ -79,7 +80,7 @@ Prefer a whistle? Record it once and the app listens for that instead of claps.
 ### What's new, first release (en-US, ≤ 500)
 
 ~~~
-First release. Clap a number of times you choose while the screen is off and your phone sounds an alarm you choose. Clap twice, unlock, or tap Stop to silence it. Live waveform to test your claps. No account, no ads, no internet access.
+First release. Clap a number of times you choose while the screen is off and your phone sounds an alarm you choose. Clap twice, unlock, or tap Stop to silence it. Tells you when an update is out. Live waveform to test your claps. No account, no ads, no internet access.
 ~~~
 
 ## Graphics
@@ -142,7 +143,7 @@ No account is needed. Open the app, tap ARM, and allow the microphone and notifi
 
 ## Data safety
 
-Google defines "collect" as transmitting data off the device. The app transmits nothing and has no `INTERNET` permission. Audio is processed ephemerally in memory.
+Google defines "collect" as transmitting data off the device. The app transmits nothing and has no `INTERNET` permission. Audio is processed ephemerally in memory. The update check is answered by the Play Store app on the phone through Google's Play app-update library; this app sends nothing itself, so nothing is declared for it.
 
 | Question | Answer |
 |---|---|

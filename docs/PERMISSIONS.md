@@ -11,6 +11,8 @@ Verified against the shipped 0.1.8 APK (`aapt2 dump permissions`). The app decla
 | `WAKE_LOCK` | Normal | Keep the CPU running while listening with the screen off | Android suspends the CPU and listening stops |
 | `…DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` | Signature, auto-added by AndroidX | Protects the screen-state receiver registered with `RECEIVER_NOT_EXPORTED` | n/a |
 
+Google's Play app-update library, which powers the update check, adds no permission; the built APK's permission list is exactly the table above. The check is made by the Play Store app on the phone, not over the network by this app.
+
 ## Declared features
 
 `android.hardware.microphone` (implied by `RECORD_AUDIO`). The Play listing will therefore exclude devices without a microphone. Add `<uses-feature android:name="android.hardware.microphone" android:required="true"/>` to make this explicit.
