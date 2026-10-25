@@ -114,7 +114,7 @@ private fun Screen(prefs: Prefs) {
 
     fun refresh() { if (ListenerService.running) ListenerService.start(ctx) }
 
-    // Once per launch (and at most every 12 hours, see UpdateChecker): ask GitHub for a newer version.
+    // Once per launch (and at most every 12 hours, see UpdateChecker): ask Google Play for a newer version.
     LaunchedEffect(Unit) {
         Thread({
             val found = UpdateChecker(ctx, prefs).check()
@@ -406,7 +406,8 @@ private fun Screen(prefs: Prefs) {
                 Switch(checked = updateCheck, onCheckedChange = { updateCheck = it; prefs.updateCheck = it })
             }
             Text(
-                "Asks GitHub for the latest version when you open the app. Nothing else is sent.",
+                "Asks Google Play whether a newer version exists when you open the app. " +
+                    "Works for copies installed from Google Play.",
                 color = MaterialTheme.colorScheme.secondary,
                 fontSize = 12.sp,
             )
@@ -445,27 +446,17 @@ private fun Screen(prefs: Prefs) {
 @Composable
 private fun UpdateDialog(update: UpdateChecker.Update, onDone: () -> Unit) {
     val ctx = LocalContext.current
-    val fromPlay = remember { UpdateChecker.installedFromPlay(ctx) }
     fun later() {
-        UpdateChecker(ctx, Prefs(ctx)).snooze(update.version)
+        UpdateChecker(ctx, Prefs(ctx)).snooze(update)
         onDone()
     }
     AlertDialog(
         onDismissRequest = ::later,
         containerColor = Color(0xFF111111),
         title = { Text("Update available") },
-        text = {
-            Text(
-                if (fromPlay) {
-                    "Version ${update.version} is out. Open Google Play to update. " +
-                        "It can take a little while to appear there."
-                } else {
-                    "Version ${update.version} is out. Download it from GitHub."
-                }
-            )
-        },
+        text = { Text("A new version is available on Google Play.") },
         confirmButton = {
-            TextButton(onClick = { UpdateChecker.open(ctx, update, fromPlay); onDone() }) { Text("Update") }
+            TextButton(onClick = { UpdateChecker(ctx, Prefs(ctx)).open(); onDone() }) { Text("Update") }
         },
         dismissButton = { TextButton(onClick = ::later) { Text("Later") } },
     )

@@ -1,6 +1,6 @@
 # Architecture
 
-Single-module Android app (`:app`), Kotlin, Jetpack Compose. `minSdk 26`, `targetSdk 37`. One network call (the update check), no database, no third-party SDKs beyond AndroidX/Compose.
+Single-module Android app (`:app`), Kotlin, Jetpack Compose. `minSdk 26`, `targetSdk 37`. No network, no database. Third-party code: AndroidX/Compose, and Google's Play app-update library for the update check.
 
 ## Components
 
@@ -12,8 +12,8 @@ Single-module Android app (`:app`), Kotlin, Jetpack Compose. `minSdk 26`, `targe
 | `ClapDetector.kt` | Pure Kotlin. Counts impulse claps in a PCM stream. |
 | `CustomSoundDetector.kt` | Pure Kotlin. Matches a recorded template against the stream. |
 | `AlarmPlayer.kt` | Loops the chosen sound on the alarm stream at maximum volume; restores volume on stop. |
-| `Versions.kt` | Pure Kotlin. Version parsing and comparison, and the rule for when to show the update popup. |
-| `UpdateChecker.kt` | Asks GitHub Releases for the latest version; opens Google Play or the release page. |
+| `UpdateChecker.kt` | Asks Google Play (through the Play Store app) whether a newer version exists; opens the Play listing. |
+| `Snooze.kt` | Pure Kotlin. The "Later" rule. |
 | `Prefs.kt` | `SharedPreferences` wrapper: clap count, sensitivity, trigger mode, custom sound bytes, alarm URI. |
 
 ## State machine
@@ -52,7 +52,7 @@ Single-module Android app (`:app`), Kotlin, Jetpack Compose. `minSdk 26`, `targe
 | `clap-dismiss` | Runs for the life of a sounding alarm. Keeps draining the microphone and feeds a `ClapDetector(2 claps, finishOnTarget)` according to the mode above. Occupies `recordThread`, so normal listening cannot start meanwhile. |
 | `live-test-listener` | Activity-owned visualizer loop. Independent of the service. |
 | `sound-recorder` | One-shot 1.5 s template capture. |
-| `update-check` | One HTTPS request to GitHub, at launch, at most every 12 hours. Posts the result to the main thread. |
+| `update-check` | One call to the Play Store app, at launch, at most every 12 hours. Posts the result to the main thread. |
 
 ### Alarm replay gap, echo cancellation and listening windows
 
@@ -95,9 +95,8 @@ alarm start ──4.0 s── window (mute) ──3.0 s── unmute ── verd
 | `sensitivity` | float | 0–1 |
 | `clapToStop` | boolean | Two claps silence the alarm (default on) |
 | `updateCheck` | boolean | Check for updates (default on) |
-| `lastUpdateCheck` | long | Time of the last successful check |
-| `latestVersion`, `latestUrl` | string | Newest release seen |
-| `snoozedVersion`, `snoozedUntil` | string, long | "Later": no prompt for that version for 3 days |
+| `lastUpdateCheck` | long | Time of the last completed check |
+| `snoozedKey`, `snoozedUntil` | string, long | "Later": the version code and when it stops being hidden (3 days) |
 | `triggerMode` | string | `claps` or `custom` |
 | `customSound` | string | Base64 of 1.5 s PCM16 mono audio (~64 KB) |
 | `alarmUri` | string | URI of the chosen alarm sound |
@@ -108,12 +107,12 @@ A chosen audio file keeps a persisted read grant (`takePersistableUriPermission`
 
 ~~~
 app opened → update-check thread
-  → throttled (12 h since the last success) or fetch GET https://api.github.com/repos/HereLiesAz/clappiest/releases/latest
-  → tag_name (e.g. 0.1.9) vs installed versionName, first three components
-  → Versions.shouldPrompt (newer, and not snoozed for that version) → popup
+  → throttled (12 h since the last completed check)? stop
+  → AppUpdateManager.appUpdateInfo (answered by the Play Store app, not by a request from this app)
+  → UPDATE_AVAILABLE and not snoozed for that version code → popup
 ~~~
 
-Every merge to `main` publishes to GitHub and Google Play together, so one source answers for both installs. The popup says Play "can take a little while" because GitHub is first. **Update** opens Play (`market://`, then the web listing) when `getInstallSourceInfo` reports `com.android.vending`, otherwise the GitHub release page. The app never downloads or installs anything. `/releases/latest` excludes drafts and prereleases. Only the three-part tag is compared: a re-run build inside a patch (`0.1.9.1` → `0.1.9.2`) is not an update.
+No `INTERNET` permission is needed or declared. Play answers only for copies it installed (owned by the user's Google account); otherwise the call throws, the check counts as failed, and the user sees nothing. Every merge to `main` publishes to Google Play and GitHub together, so an update on Play means one on GitHub too. Play reports a version code, not a name, so the popup does not name the version. **Update** opens `market://details`, then the web listing. The app never downloads or installs anything. A failed check is retried at the next launch.
 
 ## Build and release
 

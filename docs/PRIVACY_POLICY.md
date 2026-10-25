@@ -7,8 +7,8 @@ Effective: 2026-10-24
 ## Summary
 
 - The app listens through your microphone to hear your clap code. It analyses the sound in memory and discards it.
-- Your audio never leaves your phone.
-- The app's only network request is a "is there a newer version?" check to GitHub when you open it, at most every 12 hours. You can turn it off.
+- It has **no internet permission**. It cannot send anything off your phone.
+- When you open the app it asks the Google Play Store app on your phone whether a newer version exists. That question is made by Google Play, not by this app. You can turn it off.
 - No account, no ads, no analytics, no tracking, no third-party code that collects data.
 - The developer collects nothing and holds nothing about you.
 
@@ -38,15 +38,15 @@ Android's Auto Backup may copy the app's stored data, including a custom sound r
 
 ## Update check
 
-When you open the app, and at most once every 12 hours, it asks GitHub for the latest release of this app (`api.github.com`, over HTTPS). The request carries no account, advertising or device identifier, and no audio or settings. It does carry what any web request does: your phone's IP address, the time, and a User-Agent naming this app and its version (for example `Clappiest/0.1.9 (Android)`). GitHub receives these and handles them under [GitHub's privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement). The developer does not receive them.
+When you open the app, at most once every 12 hours, it asks the Google Play Store app on your phone whether Google Play has a newer version for your device. The Play Store app answers it, talking to Google as it does for any app. This app sends nothing itself; it has no internet permission. Google handles the exchange under [Google's privacy policy](https://policies.google.com/privacy). The developer receives nothing.
 
-If a newer version exists, the app shows a popup. Tapping **Update** opens Google Play (if Google Play installed the app) or the GitHub release page in your browser. The app never downloads or installs anything itself.
+The check works only for copies that Google Play installed. For any other copy it fails quietly and you see nothing.
 
-The app stores the time of the last check, the latest version number and its link, and when you tapped **Later**. Turn the check off with **Check for updates** on the main screen; the app then makes no network requests.
+If a newer version exists, the app shows a popup. **Update** opens the app's Google Play page. **Later** hides that version for three days. The app stores the time of the last check, and which version you tapped **Later** on and when. It never downloads or installs anything itself. Turn the check off with **Check for updates** on the main screen.
 
 ## What the app does not do
 
-- No uploading, syncing or remote logging. Apart from the update check, no network use.
+- No network access, so no uploading, syncing or remote logging.
 - No location, contacts, camera, calls, messages, or advertising ID.
 - No analytics, crash-reporting or advertising libraries.
 - No sale, sharing or disclosure of data. There is none to share.
@@ -63,7 +63,7 @@ Details: [PERMISSIONS.md](PERMISSIONS.md).
 
 ## Google Play
 
-The app is distributed through Google Play. Google processes install and device information under its own privacy policy. The developer receives only aggregated statistics from Play Console.
+The app is distributed through Google Play. Google processes install and device information, and answers the update check, under its own privacy policy. The developer receives only aggregated statistics from Play Console.
 
 ## Retention and deletion
 
@@ -81,7 +81,7 @@ The app is not directed at children under 13 and does not knowingly collect data
 
 ## Security
 
-Data stays in Android's per-app sandbox. Audio is never transmitted. The update check uses HTTPS, and Android blocks the app from using unencrypted connections.
+Data stays in Android's per-app sandbox. Nothing leaves the device, so there is no transmission to intercept.
 
 ## Changes
 

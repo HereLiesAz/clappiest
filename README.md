@@ -27,7 +27,7 @@ Silence the alarm by unlocking the phone, tapping **Stop** on the notification, 
 
 ## Updates
 
-On open, the app asks GitHub for the latest release (at most every 12 hours) and shows a popup when a newer version exists. **Update** opens Google Play or the GitHub release, whichever it was installed from. Switch it off with "Check for updates"; it then makes no network requests. This is the app's only network use; audio never leaves the phone.
+On open, the app asks Google Play whether a newer version exists (at most every 12 hours) and shows a popup if so; **Update** opens its Play page. The question is answered by the Play Store app, so the app needs no internet permission. It works only for copies installed from Google Play. Switch it off with "Check for updates".
 
 ## Limits
 

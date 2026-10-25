@@ -1,16 +1,17 @@
 # Permissions
 
-Verified against the built release APK (`aapt2 dump permissions`). Audio never leaves the device. The single network use is the update check ([PRIVACY_POLICY.md](PRIVACY_POLICY.md)).
+Verified against the shipped 0.1.8 APK (`aapt2 dump permissions`). The app declares **no** `INTERNET` permission.
 
 | Permission | Type | Why | Without it |
 |---|---|---|---|
-| `INTERNET` | Normal | The update check: one HTTPS GET to `api.github.com` when the app is opened, at most every 12 hours, user-switchable | The update popup never appears; nothing else changes |
 | `RECORD_AUDIO` | Runtime, dangerous | Listen for the clap code | App cannot function; UI shows "No microphone, no miracle." |
 | `FOREGROUND_SERVICE` | Normal | Run `ListenerService` in the foreground | Service cannot start |
 | `FOREGROUND_SERVICE_MICROPHONE` | Normal (API 34+) | Required for a foreground service of type `microphone` | Service crashes on API 34+ when it starts |
 | `POST_NOTIFICATIONS` | Runtime (API 33+) | Show the mandatory foreground notification and the alarm notification | Notification hidden; the service still runs, but the user has no visible indicator or Stop control |
 | `WAKE_LOCK` | Normal | Keep the CPU running while listening with the screen off | Android suspends the CPU and listening stops |
 | `…DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` | Signature, auto-added by AndroidX | Protects the screen-state receiver registered with `RECEIVER_NOT_EXPORTED` | n/a |
+
+Google's Play app-update library, which powers the update check, adds no permission; the built APK's permission list is exactly the table above. The check is made by the Play Store app on the phone, not over the network by this app.
 
 ## Declared features
 
@@ -20,7 +21,7 @@ Verified against the built release APK (`aapt2 dump permissions`). Audio never l
 
 | Permission | Reason not needed |
 |---|---|
-| `ACCESS_NETWORK_STATE` | The check simply fails quietly when offline |
+| `INTERNET` / `ACCESS_NETWORK_STATE` | Nothing is sent or fetched |
 | `READ_EXTERNAL_STORAGE` / `READ_MEDIA_AUDIO` | The system file picker (`OpenDocument`) grants access to the one chosen file |
 | `RECEIVE_BOOT_COMPLETED` | A microphone foreground service cannot start from boot (Android 11+) |
 | `USE_FULL_SCREEN_INTENT`, `SYSTEM_ALERT_WINDOW` | The alarm needs only sound and a notification |

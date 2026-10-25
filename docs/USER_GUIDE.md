@@ -77,13 +77,13 @@ The alarm sets the alarm volume to maximum and restores your setting afterwards.
 
 ## Updates
 
-When you open the app it asks GitHub whether a newer version exists (at most every 12 hours). If so, a popup says so. **Update** opens Google Play if Google Play installed the app, otherwise the GitHub release page. **Later** hides that version for three days. Google Play can take a little while to show a version GitHub already has.
+When you open the app it asks Google Play whether a newer version exists (at most every 12 hours). If so, a popup says so; **Update** opens the app's Google Play page and **Later** hides that version for three days. Play only answers for copies it installed, so a copy installed from GitHub never shows the popup.
 
-Turn it off with **Check for updates** on the main screen. The app then makes no network requests at all.
+Turn it off with **Check for updates** on the main screen.
 
 ## Privacy
 
-Audio is analysed in memory and discarded; it never leaves the phone. The only network request is the update check. See [PRIVACY_POLICY.md](PRIVACY_POLICY.md).
+Audio is analysed in memory and discarded. The app has no internet permission. The update check is made by the Google Play Store app, not by this app. See [PRIVACY_POLICY.md](PRIVACY_POLICY.md).
 
 ## Custom sound mode
 
