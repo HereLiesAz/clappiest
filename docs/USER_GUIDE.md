@@ -29,11 +29,21 @@ While disarmed, the main screen shows a live waveform. Clap near the phone. The 
 
 ### Silencing with two claps
 
-The alarm is loud enough, and close enough to the microphone, to drown out a clap. So it **pulses**: it plays unbroken for about 4 seconds, then goes **quiet for about 3 seconds**, then plays for 3.5 seconds, and repeats. Clap twice, with a short pause between, **while it is quiet**. Claps made while it is sounding are not heard.
+The alarm is loud and sits right beside the microphone, which makes claps hard to hear. The app handles this in two ways:
 
-- If the alarm stops pulsing and stays quiet after your claps, it worked.
-- Missed it? Wait for the next quiet moment.
-- Prefer an unbroken alarm? Turn off "Clap twice to silence the alarm". Unlock or **Stop** still work.
+- **It pauses for one second between replays** of the sound, and listens in the quiet.
+- **It tries to cancel the alarm out of the microphone** using the phone's built-in echo cancellation, and tests at the start of every alarm whether that worked on your phone.
+
+What you will notice depends on the result:
+
+| Your phone | Behaviour | How to clap |
+|---|---|---|
+| Cancels the alarm well | Alarm plays normally, with a one-second pause between replays | Clap twice, short pause between, **any time** |
+| Does not cancel it | The alarm also goes **quiet for about 3 seconds** every 7 seconds or so | Clap twice **while it is quiet**; claps made while it sounds are not heard |
+
+- Clapping while it sounds may or may not work. If nothing happens, wait for a quiet moment.
+- If the alarm stops and stays quiet after your claps, it worked.
+- Prefer an unbroken alarm? Turn off "Clap twice to silence the alarm". Unlock and **Stop** still work.
 
 ## Disarm
 
@@ -61,7 +71,8 @@ The alarm sets the alarm volume to maximum and restores your setting afterwards.
 | Stops after a phone call | Another app had the microphone | Open the app and re-arm |
 | "No microphone, no miracle." | Permission denied | Settings → Apps → The Clappiest → Permissions → Microphone |
 | Silent alarm | Chosen file missing or unsupported | Pick a System sound; the default alarm is the fallback |
-| Two claps don't silence it | Clapped while the alarm was sounding; sensitivity too low; claps too far from the phone | Clap during the quiet gap, closer, or raise sensitivity |
+| Two claps don't silence it | Clapped while the alarm was sounding on a phone that cannot cancel it; sensitivity too low; too far away | Clap during a quiet moment, closer, or raise sensitivity |
+| Alarm silences itself unexpectedly | A percussive alarm sound sounds like claps to the detector | Choose a smoother sound, lower sensitivity, or turn off clap-to-silence |
 | Alarm keeps pausing | Clap-to-silence is on | Turn it off for an unbroken alarm |
 
 ## Privacy

@@ -22,12 +22,17 @@ import kotlin.math.sqrt
  *
  * @param sensitivity 0 (deaf) .. 1 (paranoid). Scales both the absolute and relative thresholds.
  * @param finishOnTarget fire as soon as [targetClaps] claps are counted.
+ * @param fastFloor let the background level follow a loud, steady sound (a sounding alarm) in
+ *   both directions within about 50 ms, so a clap is judged against that sound rather than
+ *   against the quiet room. Off by default: the slow floor ignores loud frames so claps cannot
+ *   raise it.
  */
 class ClapDetector(
     private val sampleRate: Int,
     private val targetClaps: Int,
     sensitivity: Float,
     private val finishOnTarget: Boolean = false,
+    private val fastFloor: Boolean = false,
 ) {
     private val frameSize = sampleRate * FRAME_MS / 1000
     private val frame = ShortArray(frameSize)
@@ -102,8 +107,12 @@ class ClapDetector(
             onsetRms = rms
         }
 
-        // Background tracks slowly and ignores loud frames so claps don't raise it.
-        if (onsetMs < 0 && rms < noiseRms * 3f) noiseRms += (rms - noiseRms) * 0.05f
+        // Background tracks slowly and ignores loud frames so claps don't raise it. With
+        // fastFloor it follows any steady level; pending onsets still freeze it.
+        if (onsetMs < 0) {
+            if (fastFloor) noiseRms += (rms - noiseRms) * FAST_FLOOR_RATE
+            else if (rms < noiseRms * 3f) noiseRms += (rms - noiseRms) * 0.05f
+        }
         if (noiseRms < 50f) noiseRms = 50f
         if (onsetMs < 0 && rms < noiseRms * 2f) quiet = true
 
@@ -134,5 +143,7 @@ class ClapDetector(
         // Room reverb stretches a clap's tail; 200 ms / 40% still rejects speech and music.
         const val MAX_CLAP_MS = 200L
         const val DECAY_RATIO = 0.4f
+        /** Per-frame step of the fast background floor (10 ms frames: ~50 ms to settle). */
+        const val FAST_FLOOR_RATE = 0.2f
     }
 }

@@ -44,18 +44,32 @@ A clap is an impulse: sudden, loud against the background, and gone within ~200 
 
 `ClapDetector(..., finishOnTarget = true)` fires the moment the target-th clap is confirmed, without the 1.2 s quiet period, and so also accepts a longer sequence. It silences the alarm (target 2). Every other rule above still applies, so a sustained sound or two claps more than 1.2 s apart do not fire it. After firing, the count resets.
 
+### Fast floor (`fastFloor = true`)
+
+The normal background floor ignores loud frames so that claps cannot raise it, which also means it never adapts to a loud steady sound. With `fastFloor` the floor follows any level in both directions at 0.2 per 10 ms frame (about 50 ms to settle). A pending onset still freezes it, so a clap is judged against the steady sound beneath it. A sustained or slowly changing sound produces no onset that decays within 200 ms, so it is rejected as before. Unit tests show the slow floor hears 0 of two claps over a steady tone and the fast floor hears them.
+
+A percussive alarm sound (drum hits, short clicks) can still look like claps. Two such hits within 1.2 s would silence the alarm.
+
 ### Hearing a clap over the alarm
 
-The alarm plays at maximum volume beside the microphone. A clap made a metre away is far quieter than that, and the adaptive background floor would rise to the alarm's level, so claps would never register. The service therefore mutes the alarm for a window, discards the first 400 ms, and listens only inside it; see ARCHITECTURE.md ("Alarm pulse").
+The alarm plays at maximum volume beside the microphone. A clap a metre away is far quieter than that, so the service does three things (ARCHITECTURE.md, "Alarm replay gap"):
+
+1. Opens the microphone with the phone's echo canceller where available.
+2. Pauses the alarm 1 s between replays and listens in the gap.
+3. **Measures** whether cancellation worked (`EchoGuard`) and, if not, mutes the alarm for a window every 3.5 s.
+
+`EchoGuard` compares microphone RMS while the alarm is audible with RMS while it is silent, needing 500 ms of each (after a 400 ms settle). A ratio at or below 2.5 means cancelled. The silent level is floored at 60 so a very quiet room cannot make the ratio infinite.
 
 | Constant | Value | Meaning |
 |---|---|---|
-| `ALARM_LEAD_MS` | 4000 | Unbroken alarm before the first window |
-| `DISMISS_WINDOW_MS` | 3000 | Muted listening window |
-| `ALARM_ON_MS` | 3500 | Alarm between windows |
-| `WINDOW_SETTLE_MS` | 400 | Samples discarded at the start of a window |
+| `REPLAY_GAP_MS` | 1000 | Silence between replays |
+| `ALARM_LEAD_MS` | 4000 | Alarm before the first forced window |
+| `DISMISS_WINDOW_MS` | 3000 | Forced muted window |
+| `ALARM_ON_MS` | 3500 | Alarm between forced windows |
+| `WINDOW_SETTLE_MS` | 400 | Ignored after any sound/silence change |
+| `EchoGuard` `minMs` / `maxRatio` | 500 / 2.5 | Evidence needed; cancelled threshold |
 
-These are estimates, not measurements. Tune them on devices (TESTING.md T28–T31).
+These are estimates, not measurements. Tune them on devices (TESTING.md T28–T38).
 
 ### Tuning
 

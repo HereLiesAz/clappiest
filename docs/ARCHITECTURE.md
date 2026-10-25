@@ -7,7 +7,8 @@ Single-module Android app (`:app`), Kotlin, Jetpack Compose. `minSdk 26`, `targe
 | File | Role |
 |---|---|
 | `MainActivity.kt` | Compose UI: mode, clap count, sensitivity, alarm sound, ARM switch, live visualizer. Records the custom-sound template. |
-| `ListenerService.kt` | Foreground service (`microphone` type). Owns the microphone while armed. Screen-state receiver. Starts and stops the alarm, and runs the listening windows that let two claps silence it. |
+| `ListenerService.kt` | Foreground service (`microphone` type). Owns the microphone while armed. Screen-state receiver. Starts and stops the alarm, and runs the echo-cancelled, gap-and-window listening that lets two claps silence it. |
+| `EchoGuard.kt` | Pure Kotlin. Decides whether echo cancellation hides the alarm from the microphone. |
 | `ClapDetector.kt` | Pure Kotlin. Counts impulse claps in a PCM stream. |
 | `CustomSoundDetector.kt` | Pure Kotlin. Matches a recorded template against the stream. |
 | `AlarmPlayer.kt` | Loops the chosen sound on the alarm stream at maximum volume; restores volume on stop. |
@@ -20,7 +21,7 @@ Single-module Android app (`:app`), Kotlin, Jetpack Compose. `minSdk 26`, `targe
 | Disarmed | Released (live visualizer may use it while the app is open) | None |
 | Armed, screen on | Released | "Listening in the dark" |
 | Armed, screen off (Listening) | Open on `clap-listener`; partial wake lock held | "Listening in the dark" |
-| Alarming | Open on `clap-dismiss` during muted listening windows (if clap-to-silence is on); wake lock held | "Here I am" with **Stop**; alarm looping, pulsed |
+| Alarming | Open on `clap-dismiss` (if clap-to-silence is on); wake lock held | "Here I am" with **Stop**; alarm replaying with 1 s gaps, and muted windows if cancellation fails |
 
 | From | Event | To |
 |---|---|---|
@@ -46,19 +47,30 @@ Single-module Android app (`:app`), Kotlin, Jetpack Compose. `minSdk 26`, `targe
 |---|---|
 | Main | UI, receiver callbacks, `onMatch()` (posted from the worker) |
 | `clap-listener` | `AudioRecord.read` loop → detector. 16 kHz mono PCM16, 20 ms reads. Exits when `recordThread` no longer references it, on read error, or on match. |
-| `clap-dismiss` | Runs for the life of a sounding alarm. Keeps draining the microphone; feeds a `ClapDetector(2 claps, finishOnTarget)` only while `windowOpen`. Occupies `recordThread`, so normal listening cannot start meanwhile. |
+| `clap-dismiss` | Runs for the life of a sounding alarm. Keeps draining the microphone and feeds a `ClapDetector(2 claps, finishOnTarget)` according to the mode above. Occupies `recordThread`, so normal listening cannot start meanwhile. |
 | `live-test-listener` | Activity-owned visualizer loop. Independent of the service. |
 | `sound-recorder` | One-shot 1.5 s template capture. |
 
-### Alarm pulse
+### Alarm replay gap, echo cancellation and listening windows
 
-On a match with clap-to-silence enabled, the main-thread `Handler` cycles `openWindow` → `closeWindow`:
+With clap-to-silence on, `AlarmPlayer.start(uri, REPLAY_GAP_MS, onPhase)` plays the sound once (not looped), reports `onPhase(false)` on completion, stays silent 1 s, restarts and reports `onPhase(true)`. The service tracks this as `gapQuiet`. The alarm is not heard in the gap, so the gap is a clean moment to hear a clap.
+
+`openDismissRecorder()` opens the microphone from `VOICE_COMMUNICATION` (the source vendors tune echo cancellation for), then `VOICE_RECOGNITION`, then `MIC`, and attaches an `AcousticEchoCanceler` where the phone offers one. `mayCancel` is true for `VOICE_COMMUNICATION` or an enabled canceller.
+
+The `clap-dismiss` thread runs one of three modes (`dismissMode`):
+
+| Mode | When | Listening | Forced mute windows |
+|---|---|---|---|
+| `MODE_WINDOWS` | No possible cancellation, or it failed the test | Only in silent moments (gap or window), after a 400 ms settle | Every 3.5 s of sound: a 3 s muted window |
+| `MODE_CALIBRATING` | Start, if `mayCancel` | As `MODE_WINDOWS` | One, at 4 s, to give `EchoGuard` a silent reference |
+| `MODE_CONTINUOUS` | `EchoGuard` says cancelled | Always, with a `fastFloor` detector; 400 ms around each sound/silence change is ignored | None |
 
 ~~~
-alarm start ──4.0 s── mute, open window ──3.0 s── unmute, close window ──3.5 s── (repeat)
+alarm start ──4.0 s── window (mute) ──3.0 s── unmute ── verdict ─┬─ CANCELLED     → CONTINUOUS (no more windows)
+                                                                  └─ NOT_CANCELLED → WINDOWS (3.5 s sound / 3 s window, repeat)
 ~~~
 
-`openWindow` bumps `windowId` and sets `windowOpen`; the dismiss thread sees the new id, resets the detector and discards the first 400 ms so the speaker's tail is not mistaken for a clap. The window opens only if `dismissReady` (the microphone is recording); otherwise the alarm stays loud. A match posts `silence()` to the main thread. Muting uses `MediaPlayer.setVolume(0, 0)`, so the loop keeps its position. While the alarm sounds, a screen-on event and a settings refresh (`onStartCommand`) leave the dismiss listener alone.
+`EchoGuard` compares the microphone's RMS while the alarm is audible to its RMS while silent (500 ms of each, after settling). A ratio of 2.5 or less counts as cancelled. `windowOpen`, `gapQuiet` and `stateSince` are written on the main thread and read by the dismiss thread. The window opens only if `dismissReady` (the microphone is recording); otherwise the alarm stays loud. A match posts `silence()` to the main thread. Muting uses `MediaPlayer.setVolume(0, 0)`. While the alarm sounds, a screen-on event and a settings refresh (`onStartCommand`) leave the dismiss listener alone.
 
 `stopListening()` clears `recordThread`, joins up to 500 ms, then releases the wake lock.
 

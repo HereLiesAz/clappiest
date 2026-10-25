@@ -52,6 +52,11 @@ Expected results assume clap mode, sensitivity 0.5, 3 claps, unless stated.
 | T32 | Toggle off | Turn off "Clap twice to silence the alarm" → T4 | Unbroken alarm; no gaps; unlock and **Stop** work |
 | T33 | Alarm pulse vs screen | Trigger the alarm; turn the screen on with the power button | Alarm keeps pulsing; clapping still silences it |
 | T34 | Single clap or noise | During a gap: one clap; speech; a door slam | Alarm not silenced by a single clap or speech (record door-slam outcome) |
+| T35 | Echo cancellation verdict | Trigger the alarm on each device; log which mode it reaches (add a temporary log line for `dismissMode`) | Record CONTINUOUS or WINDOWS per device and source |
+| T36 | Clap over a sounding alarm | On a CONTINUOUS device: clap twice while the alarm sounds, 0.5 / 1 / 2 m | Record success rate; compare with clapping in the gap |
+| T37 | Replay gap | Alarm with a short tone, then a 30 s file, then a 4 min song | Gap of about 1 s after each replay; claps in the gap silence it |
+| T38 | Percussive alarm | Use a drum or click-heavy file at sensitivity 0.5 and 1.0, no claps | Alarm not silenced for 2 min; record any false stops |
+| T39 | Alarm loudness | Compare the alarm's loudness with and without the dismiss microphone (sound-level meter or by ear) | No audible drop from opening the microphone as `VOICE_COMMUNICATION` |
 | T27 | Lock-screen integrity | With a PIN/pattern/biometric set: arm → screen off → screen on, repeat 20×; also after an alarm and after **Stop**; then repeat with the app force-stopped | Lock screen appears every time, identically in both conditions (KNOWN_ISSUES R1) |
 
 ## Result log

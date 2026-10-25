@@ -40,7 +40,7 @@ Everything needed to take *The Clappiest* from draft to published. Character lim
 | Email | **[add]** | |
 | Privacy policy URL | **[add]** | |
 
-### Full description (en-US, 1,759 / 4,000)
+### Full description (en-US, 1,849 / 4,000)
 
 ~~~
 Lost in the dark, found by applause.
@@ -51,7 +51,7 @@ HOW IT WORKS
 • Choose how many claps (2 to 10), how sensitive it is, and which sound plays: a tone from your phone or any audio file.
 • Tap ARM. A notification shows that it is listening.
 • While the screen is off, the microphone listens for your exact clap count. Four claps will not answer a three-clap code.
-• On a match the alarm loops on the alarm channel at full volume, so silent and vibrate modes do not mute it. Unlock the phone, tap Stop, or clap twice to silence it. The alarm pauses for a few seconds at a time so the app can hear you; clap twice during the quiet.
+• On a match the alarm loops on the alarm channel at full volume, so silent and vibrate modes do not mute it. Unlock the phone, tap Stop, or clap twice to silence it. The alarm pauses for a second between replays and, on phones that cannot filter it out of the microphone, for a few seconds at a time, so the app can hear you; clap twice during the quiet.
 • Turn the screen on and it stops listening at once.
 • Test it first. The main screen shows a live waveform and tells you when your clap code is recognized.
 

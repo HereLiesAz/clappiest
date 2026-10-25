@@ -57,6 +57,43 @@ class ClapDetectorTest {
         assertEquals(1, run(3, silence(1000), *parts, silence(2000)))
     }
 
+    // fastFloor: hearing claps over a loud, steady sound such as a cancelled alarm's residue.
+
+    /** A steady tone standing in for the alarm's residue, rms about 2100. */
+    private fun steady(ms: Int) = ShortArray(rate * ms / 1000) { i ->
+        (3000 * Math.sin(2 * Math.PI * 440 * i / rate)).toInt().toShort()
+    }
+
+    /** A clap landing on top of the steady tone. */
+    private fun clapOverSteady(): ShortArray {
+        val c = clap(); val t = steady(c.size * 1000 / rate)
+        return ShortArray(c.size) { (c[it] + t[it]).coerceIn(-32768, 32767).toShort() }
+    }
+
+    private fun runLive(vararg parts: ShortArray, fastFloor: Boolean): Int {
+        val d = ClapDetector(rate, 2, 0.5f, finishOnTarget = true, fastFloor = fastFloor)
+        var hits = 0
+        for (p in parts) if (d.process(p)) hits++
+        return hits
+    }
+
+    @Test fun fastFloorHearsTwoClapsOverASteadySound() {
+        val parts = arrayOf(steady(1000), clapOverSteady(), steady(300), clapOverSteady(), steady(300))
+        assertEquals(1, runLive(*parts, fastFloor = true))
+    }
+
+    @Test fun theSlowFloorCannotHearClapsOverASteadySound() {
+        // Why fastFloor exists: the slow floor never adapts to a loud steady sound.
+        val parts = arrayOf(steady(1000), clapOverSteady(), steady(300), clapOverSteady(), steady(300))
+        assertEquals(0, runLive(*parts, fastFloor = false))
+    }
+
+    @Test fun fastFloorIgnoresTheSteadySoundItself() =
+        assertEquals(0, runLive(silence(1000), steady(1500), silence(1000), steady(1500), fastFloor = true))
+
+    @Test fun fastFloorIgnoresASingleClap() =
+        assertEquals(0, runLive(steady(1000), clapOverSteady(), steady(2500), fastFloor = true))
+
     // finishOnTarget: used to silence the alarm.
 
     @Test fun finishOnTargetFiresWithoutWaitingForQuiet() {
