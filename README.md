@@ -4,6 +4,8 @@ Lost your phone in the dark? Clap. It screams back.
 
 Android app (`com.hereliesaz.clappiest`). While armed and the screen is off, it listens for an exact number of claps and plays an alarm sound of your choosing at full alarm volume — silent mode notwithstanding.
 
+**Documentation: [docs/](docs/README.md)** — user guide, architecture, detection, permissions, privacy policy, Play listing, release, testing, known issues.
+
 ## Use
 
 1. Set **Claps** (2–10). The sequence must match exactly; four claps won't fire a three-clap setting.
@@ -11,7 +13,7 @@ Android app (`com.hereliesaz.clappiest`). While armed and the screen is off, it 
 3. Pick a **Sound**: a system tone, or any audio file.
 4. **ARM**. A persistent notification confirms it is listening.
 
-Silence the alarm by unlocking the phone or tapping **Stop** on the notification.
+Silence the alarm by unlocking the phone, tapping **Stop** on the notification, or clapping twice. The alarm pauses a second between replays, tries to cancel itself out of the microphone, and where that fails goes quiet every few seconds so the claps can be heard; turn this off with "Clap twice to silence the alarm".
 
 ## How it works
 
@@ -22,6 +24,10 @@ Silence the alarm by unlocking the phone or tapping **Stop** on the notification
 | `AlarmPlayer.kt` | Looping `MediaPlayer` on the alarm stream at max volume; restores prior volume afterward. |
 | `Prefs.kt` | Clap count, sensitivity, sound URI. |
 | `MainActivity.kt` | Compose settings screen and arm switch. |
+
+## Updates
+
+On open, the app asks Google Play whether a newer version exists (at most every 12 hours) and shows a popup if so; **Update** opens its Play page. The question is answered by the Play Store app, so the app needs no internet permission. It works only for copies installed from Google Play. Switch it off with "Check for updates".
 
 ## Limits
 

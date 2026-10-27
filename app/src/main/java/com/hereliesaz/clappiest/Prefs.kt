@@ -17,6 +17,28 @@ class Prefs(context: Context) {
         get() = sp.getFloat("sensitivity", 0.5f)
         set(v) = sp.edit { putFloat("sensitivity", v) }
 
+    /** Whether two claps silence a sounding alarm. */
+    var clapToStop: Boolean
+        get() = sp.getBoolean("clapToStop", true)
+        set(v) = sp.edit { putBoolean("clapToStop", v) }
+
+    /** Whether the app may ask Google Play for a newer version when opened. */
+    var updateCheck: Boolean
+        get() = sp.getBoolean("updateCheck", true)
+        set(v) = sp.edit { putBoolean("updateCheck", v) }
+
+    var lastUpdateCheck: Long
+        get() = sp.getLong("lastUpdateCheck", 0L)
+        set(v) = sp.edit { putLong("lastUpdateCheck", v) }
+
+    var snoozedKey: String?
+        get() = sp.getString("snoozedKey", null)
+        set(v) = sp.edit { putString("snoozedKey", v) }
+
+    var snoozedUntil: Long
+        get() = sp.getLong("snoozedUntil", 0L)
+        set(v) = sp.edit { putLong("snoozedUntil", v) }
+
     var triggerMode: String
         get() = sp.getString("triggerMode", "claps") ?: "claps"
         set(v) = sp.edit { putString("triggerMode", v) }

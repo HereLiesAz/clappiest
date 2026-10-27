@@ -14,14 +14,25 @@ import kotlin.math.sqrt
  * The sequence is judged once [MAX_GAP_MS] of silence follows the last clap, so four
  * claps never satisfy a target of three.
  *
+ * With [finishOnTarget] the detector instead fires the moment the [targetClaps]th clap is
+ * confirmed, without waiting for the quiet period, and so also accepts extra claps. Used to
+ * silence the alarm, where speed matters more than rejecting a longer sequence.
+ *
  * Pure Kotlin; no Android dependencies, so it is unit-testable on the JVM.
  *
  * @param sensitivity 0 (deaf) .. 1 (paranoid). Scales both the absolute and relative thresholds.
+ * @param finishOnTarget fire as soon as [targetClaps] claps are counted.
+ * @param fastFloor let the background level follow a loud, steady sound (a sounding alarm) in
+ *   both directions within about 50 ms, so a clap is judged against that sound rather than
+ *   against the quiet room. Off by default: the slow floor ignores loud frames so claps cannot
+ *   raise it.
  */
 class ClapDetector(
     private val sampleRate: Int,
     private val targetClaps: Int,
     sensitivity: Float,
+    private val finishOnTarget: Boolean = false,
+    private val fastFloor: Boolean = false,
 ) {
     private val frameSize = sampleRate * FRAME_MS / 1000
     private val frame = ShortArray(frameSize)
@@ -80,8 +91,12 @@ class ClapDetector(
         if (onsetMs >= 0) {
             // Clap confirmed once energy collapses; rejected if it lingers.
             if (rms < onsetRms * DECAY_RATIO) {
-                registerClap(onsetMs)
+                val counted = registerClap(onsetMs)
                 onsetMs = -1
+                if (finishOnTarget && counted && count == targetClaps) {
+                    count = 0
+                    return true
+                }
             } else if (nowMs - onsetMs > MAX_CLAP_MS) {
                 onsetMs = -1
                 abandonSequence()
@@ -92,8 +107,12 @@ class ClapDetector(
             onsetRms = rms
         }
 
-        // Background tracks slowly and ignores loud frames so claps don't raise it.
-        if (onsetMs < 0 && rms < noiseRms * 3f) noiseRms += (rms - noiseRms) * 0.05f
+        // Background tracks slowly and ignores loud frames so claps don't raise it. With
+        // fastFloor it follows any steady level; pending onsets still freeze it.
+        if (onsetMs < 0) {
+            if (fastFloor) noiseRms += (rms - noiseRms) * FAST_FLOOR_RATE
+            else if (rms < noiseRms * 3f) noiseRms += (rms - noiseRms) * 0.05f
+        }
         if (noiseRms < 50f) noiseRms = 50f
         if (onsetMs < 0 && rms < noiseRms * 2f) quiet = true
 
@@ -105,10 +124,12 @@ class ClapDetector(
         return false
     }
 
-    private fun registerClap(atMs: Long) {
-        if (count > 0 && atMs - lastClapMs < MIN_GAP_MS) return
+    /** Returns false when the clap is ignored as an echo of the previous one. */
+    private fun registerClap(atMs: Long): Boolean {
+        if (count > 0 && atMs - lastClapMs < MIN_GAP_MS) return false
         count++
         lastClapMs = atMs
+        return true
     }
 
     private fun abandonSequence() {
@@ -122,5 +143,7 @@ class ClapDetector(
         // Room reverb stretches a clap's tail; 200 ms / 40% still rejects speech and music.
         const val MAX_CLAP_MS = 200L
         const val DECAY_RATIO = 0.4f
+        /** Per-frame step of the fast background floor (10 ms frames: ~50 ms to settle). */
+        const val FAST_FLOOR_RATE = 0.2f
     }
 }
