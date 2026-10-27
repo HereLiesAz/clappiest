@@ -49,7 +49,10 @@ class ListenerService : Service() {
     private val main = Handler(Looper.getMainLooper())
     private lateinit var prefs: Prefs
     private lateinit var alarm: AlarmPlayer
+    private lateinit var watcher: ConditionWatcher
     private var wakeLock: PowerManager.WakeLock? = null
+    /** Why the user's [Rules] are holding listening off, or null when they are not. */
+    private var pausedReason: String? = null
 
     @Volatile private var recordThread: Thread? = null
     /** The microphone could not be opened; shown in the notification until listening resumes. */
@@ -68,9 +71,9 @@ class ListenerService : Service() {
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
-                Intent.ACTION_SCREEN_OFF -> if (!alarm.isPlaying) startListening()
                 // A sounding alarm keeps its own listener; only the find-the-phone listener stops.
-                Intent.ACTION_SCREEN_ON -> if (!alarm.isPlaying) stopListening()
+                Intent.ACTION_SCREEN_OFF -> applyRules(screenOff = true)
+                Intent.ACTION_SCREEN_ON -> applyRules(screenOff = false)
                 Intent.ACTION_USER_PRESENT -> silence()
             }
         }
@@ -82,6 +85,7 @@ class ListenerService : Service() {
         super.onCreate()
         prefs = Prefs(this)
         alarm = AlarmPlayer(this)
+        watcher = ConditionWatcher(this) { applyRules() }
         createChannels()
     }
 
@@ -107,21 +111,49 @@ class ListenerService : Service() {
             )
             running = true
         }
+        // Rules may have changed. The alarm itself is never touched by them.
+        watcher.start(prefs.rules)
         // A sounding alarm must not be interrupted by a settings refresh.
         if (alarm.isPlaying) return START_NOT_STICKY
         // Settings may have changed; restart the detector with fresh values.
         stopListening()
-        if (!getSystemService(PowerManager::class.java).isInteractive) startListening()
+        applyRules()
         return START_NOT_STICKY
     }
 
     override fun onDestroy() {
         if (running) unregisterReceiver(screenReceiver)
         running = false
+        watcher.stop()
         stopListening()
         silence()
         main.removeCallbacksAndMessages(null)
         super.onDestroy()
+    }
+
+    /**
+     * Decides, from the screen and the user's [Rules], whether the find-the-phone listener should
+     * be running, and makes it so. Called whenever either may have changed; cheap when nothing did.
+     * A sounding alarm is left alone.
+     */
+    private fun applyRules(screenOff: Boolean = !getSystemService(PowerManager::class.java).isInteractive) {
+        if (!running || alarm.isPlaying) return
+        watcher.setScreenOff(screenOff)
+        if (!screenOff) {
+            setPaused(null)
+            stopListening()
+            return
+        }
+        when (val d = RuleEngine.evaluate(prefs.rules, watcher.snapshot())) {
+            Decision.Listen -> { setPaused(null); startListening() }
+            is Decision.Pause -> { stopListening(); setPaused(d.reason) }
+        }
+    }
+
+    private fun setPaused(reason: String?) {
+        if (reason == pausedReason) return
+        pausedReason = reason
+        refreshListeningNotification()
     }
 
     @SuppressLint("MissingPermission") // Checked in MainActivity before the service starts.
@@ -198,9 +230,7 @@ class ListenerService : Service() {
     }
 
     private val retryListening: Runnable = Runnable {
-        if (running && !alarm.isPlaying && recordThread == null &&
-            !getSystemService(PowerManager::class.java).isInteractive
-        ) startListening()
+        if (recordThread == null) applyRules()
     }
 
     private fun refreshListeningNotification() {
@@ -426,7 +456,7 @@ class ListenerService : Service() {
         endDismissCycle()
         alarm.stop()
         getSystemService(NotificationManager::class.java).cancel(NOTIF_ALARM)
-        if (running && !getSystemService(PowerManager::class.java).isInteractive) startListening()
+        applyRules()
     }
 
     private fun createChannels() {
@@ -452,9 +482,10 @@ class ListenerService : Service() {
     private fun listeningNotification(): Notification =
         NotificationCompat.Builder(this, CH_LISTEN)
             .setSmallIcon(R.drawable.ic_clap)
-            .setContentTitle("Listening in the dark")
+            .setContentTitle(if (pausedReason != null) "Not listening" else "Listening in the dark")
             .setContentText(
                 when {
+                    pausedReason != null -> "Resting: $pausedReason."
                     listenerUnavailable -> "Can't reach the microphone. Trying again."
                     prefs.triggerMode == "custom" -> "Listening for your custom sound."
                     else -> "${prefs.clapCount} claps and I'll scream."

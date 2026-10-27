@@ -22,6 +22,16 @@ Clap mode has never run on a physical device. Everything below that concerns it 
 - **Percussive alarm sounds** can be heard as claps by the always-on detector; two in 1.2 s silence the alarm. T38.
 - **Clap-to-silence is a short-pause alarm.** A user who finds the phone by following an unbroken tone gets gaps; the setting turns this off.
 
+- **"When to listen" has never run on a device.** The rule logic, storage and body estimator are unit-tested on the JVM; sensors, location, the schedule alarm and the permission flow are not. T56–T70.
+- **The on-body estimate is a guess.** Android gives apps no on-body sensor for phones, so it uses motion (spread of acceleration above 0.12 m/s² per second, held for 45 s) and the proximity sensor (a covered phone that moved in the last 10 minutes). Thresholds are untuned. A still phone in a still pocket and a phone on a moving train are both misread.
+- **Sensors with the screen off need a wake lock** and may be throttled on some phones; with the on-body rule on, battery use is about that of listening. If sensors are throttled the rule reads "unknown" and listening continues.
+- **Location with the screen off is best-effort.** Network-provider fixes every 5 minutes, and only if "Allow all the time" was granted; Android 12+ users may grant approximate location only (fine for 250 m places, poor for 100 m). A phone in Doze may deliver fixes late.
+- **Reading a Wi-Fi network's name** uses `WifiManager.connectionInfo` (deprecated) because the replacement needs a network callback with location info; some Android versions return "unknown", in which case the rule is skipped.
+- **The hours rule is inexact**: `setAndAllowWhileIdle` may fire minutes late in Doze.
+- **Unknown means listen.** Every rule fails open, because a missed lost-phone is worse than listening where the user did not want it.
+- **Background location is a Play review risk** ([PERMISSIONS.md](PERMISSIONS.md)).
+- **Saved places are in Auto Backup** until `allowBackup` is turned off (issue 7).
+
 ## Reported, unconfirmed
 
 ### R1. Lock screen skipped when the screen turns on (user report, 2026-10-24)
