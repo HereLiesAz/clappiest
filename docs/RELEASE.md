@@ -53,7 +53,7 @@ Lose the upload key and you must request an upload-key reset in Play Console. Ba
 
 ## Versioning
 
-- `version.properties`: `versionMajor.versionMinor.versionPatch.versionBuild` (currently 0.1.8.1).
+- `version.properties`: `versionMajor.versionMinor.versionPatch.versionBuild` (see the file; the pipeline bumps it).
 - Git tag and GitHub Release: `MAJOR.MINOR.PATCH`; asset name carries the full four-part version.
 - **Play `versionCode` is chosen by the publisher:** the larger of the repository's recorded code and every code Play has ever accepted, plus one. `app/build.gradle.kts` honours `-PversionCodeOverride` / `-PversionNameOverride`; locally it derives `major·10⁶ + minor·10⁴ + patch·10² + build`.
 - Never lower the version or reuse a code. Play rejects both.
@@ -88,7 +88,7 @@ To re-register after changing trigger files: **Sync repository workflows** with 
 | `KEYSTORE_PRIVATE/KEYSTORE_RSA and KEYSTORE_CHAIN are required` | Secrets absent from the `clappiest` environment | Add them |
 | `no failed step reported` on a GitHub release | Runner or infrastructure failure before a step ran | Re-run once from the gateway; a second failure is real |
 | Stale "Central run failing" issue | The workflow appends to the issue on failure and never closes it on success | Close it manually after a passing run |
-| Build fails on `ndkVersion` | `app/build.gradle.kts` pins an NDK the app does not use | KNOWN_ISSUES #10 |
+| Build fails on `ndkVersion` | The pinned NDK is missing on the runner; it is used to strip the native library Compose ships | Install that NDK version on the runner; do not remove the pin (KNOWN_ISSUES #10) |
 
 ## Rollback
 

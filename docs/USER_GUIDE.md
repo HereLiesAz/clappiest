@@ -4,7 +4,7 @@
 
 Arm the app. When the screen is off it listens for your clap code. On a match it plays your chosen sound at full alarm volume until you unlock the phone, tap **Stop**, or clap twice.
 
-It listens **only while the screen is off**. Turn the screen on and the microphone is released.
+It listens for your code **only while the screen is off** (and only when your "When to listen" rules allow it). Turn the screen on and the microphone is released. Two other times the microphone is on: while the app is open and disarmed, to draw the live test waveform, and while an alarm sounds, to hear two claps (switchable).
 
 ## Set up
 

@@ -1,10 +1,10 @@
 # Known issues
 
-Verified 2026-10-24 against `main` at 0.1.8 (`dedef62`) and the published APK; the entries marked fixed were changed afterwards and have not run on a device. Severity: **S1** feature does not work; **S2** wrong or risky behaviour; **S3** robustness or hygiene; **S4** polish.
+Reviewed 2026-10-27 against `main` at 0.2.0.1 and the 0.1.8 APK. Entries marked fixed or hidden changed since, and none of the changes has run on a device. Line numbers are deliberately not quoted: they go stale. Severity: **S1** feature does not work; **S2** wrong or risky behaviour; **S3** robustness or hygiene; **S4** polish.
 
 ## Unverified
 
-Clap mode has never run on a physical device. Everything below that concerns it is from code reading and synthetic audio. The pipeline built and published 0.1.1–0.1.8. No CI runs the unit tests.
+Clap mode has never run on a physical device. Everything below that concerns it is from code reading and synthetic audio. The pipeline builds and publishes every merge that touches the app. No CI runs the unit tests.
 
 ## Unverified design choices
 
@@ -68,11 +68,11 @@ Simulation: 1.5 s template (2.6 kHz whistle with 1% vibrato in light room noise)
 
 ### 2. Sensitivity is inverted in custom mode (S1)
 
-`CustomSoundDetector.kt:12`: `threshold = 0.55 + clamp(0.3·sensitivity, 0, 0.35)`. Higher sensitivity raises the threshold, making matching stricter. Clap mode behaves the opposite. Use `threshold = 0.85 − 0.3·sensitivity` (or the tuned equivalent).
+`CustomSoundDetector`: `threshold = 0.55 + clamp(0.3·sensitivity, 0, 0.35)`. Higher sensitivity raises the threshold, making matching stricter. Clap mode behaves the opposite. Use `threshold = 0.85 − 0.3·sensitivity` (or the tuned equivalent).
 
 ### 3. Template and detector hear different audio (S2)
 
-`MainActivity.kt:441` records the template from `AudioSource.MIC`; detection (`MainActivity.kt:122`, `ListenerService.kt`) uses `VOICE_RECOGNITION`. The two apply different processing, so the template differs from live audio even for an identical sound. Record from the same source, via the same fallback list.
+The template recorder used `AudioSource.MIC`; detection (`ListenerService`) uses `VOICE_RECOGNITION`. The two apply different processing, so the template differs from live audio even for an identical sound. Record from the same source, via the same fallback list.
 
 ### 4. Custom mode can arm with nothing to listen for (S2)
 
@@ -98,13 +98,13 @@ A microphone that could not be opened, could not start, or died mid-run left the
 
 A dialog explains the microphone and notification requests before the system prompts (T73).
 
-### 10. Unused `ndkVersion` (S3)
+### 10. `ndkVersion` looks unused but is not (S3, corrected)
 
-`app/build.gradle.kts:50` pins NDK 29.0.14206865; the app has no native code. CI must download an NDK for nothing, and a missing one can fail the build. Remove it.
+An earlier version of this file said the app has no native code and the NDK pin could be removed. That was wrong: Compose ships `libandroidx.graphics.path.so`, and the release build strips its symbols with the pinned NDK (`29.0.14206865`). Keep the pin. A runner without that NDK downloads it or fails the build; see [RELEASE.md](RELEASE.md).
 
-### 11. Tests are not run anywhere (S3)
+### 11. Tests were not run anywhere (S3) — CI added
 
-The central release workflows build but do not test, and the repository has no CI. `CustomSoundDetector`, `Prefs` and service logic are untested. Add a CI workflow that runs `:app:testDebugUnitTest` (declare it with the central `ci-report` action; CI is the one workflow type a target repository may own) and tests for the custom detector.
+`.github/workflows/ci.yml` runs `:app:testDebugUnitTest` on every pull request and push to `main`, declared to the central pipeline with `ci-report`. It is not a release gate: the central release workflows still build without testing, so a merge with failing tests would publish. Make the check required in the branch protection of `main` to close that. `CustomSoundDetector` (hidden), `Prefs`, `AlarmPlayer`, `ConditionWatcher` and the service are untested on the JVM.
 
 ### 12. Alarm may play through headphones at full volume (S3, safety)
 
