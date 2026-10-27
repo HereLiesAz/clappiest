@@ -10,6 +10,7 @@ Single-module Android app (`:app`), Kotlin, Jetpack Compose. `minSdk 26`, `targe
 | `ListenerService.kt` | Foreground service (`microphone` type). Owns the microphone while armed. Screen-state receiver. Starts and stops the alarm, and runs the echo-cancelled, gap-and-window listening that lets two claps silence it. |
 | `EchoGuard.kt` | Pure Kotlin. Decides whether echo cancellation hides the alarm from the microphone. |
 | `ClapDetector.kt` | Pure Kotlin. Counts impulse claps in a PCM stream. |
+| `ClapShape.kt` | Pure Kotlin. Decides whether a transient *sounds* like a clap (spectral centroid, low-band share, flatness; its own FFT). Used by `ClapDetector`. |
 | `CustomSoundDetector.kt` | Pure Kotlin. Matches a recorded template against the stream. |
 | `AlarmPlayer.kt` | Loops the chosen sound on the alarm stream at maximum volume; restores volume on stop. |
 | `UpdateChecker.kt` | Asks Google Play (through the Play Store app) whether a newer version exists; opens the Play listing. |

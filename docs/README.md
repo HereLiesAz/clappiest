@@ -19,7 +19,7 @@
 
 | Area | State |
 |---|---|
-| Clap mode | Implemented. JVM-tested. **Not yet verified on a device.** |
+| Clap mode | Implemented. JVM-tested. Verifies that a sound actually sounds like a clap (measured on real recordings: 95% of claps kept, 72% fewer false matches for a 3-clap code). **Not yet verified on a device.** |
 | Custom-sound mode | Implemented. **Does not work reliably**; see KNOWN_ISSUES #1. |
 | Update popup | Implemented. Asks Google Play (no internet permission); Play-installed copies only. **Not yet verified on a device.** |
 | GitHub Releases | Automatic on every merge to `main` touching the app. |

@@ -67,7 +67,9 @@ The alarm sets the alarm volume to maximum and restores your setting afterwards.
 |---|---|---|
 | Never triggers | Not armed; battery restriction; microphone busy; count mismatch | Check the notification is present; apply "Keep it alive"; test with the visualizer |
 | Triggers on claps you did not make | Sensitivity too high | Lower it; raise the clap count |
-| Misses claps | Sensitivity too low; muffled by pocket or bag; noisy room | Raise it; test at the distance you expect |
+| Misses claps | Sensitivity too low; muffled by pocket or bag; noisy room; dull claps | Raise it; test at the distance you expect; clap flat-handed and crisply, all alike |
+| Ignores a knock or a bang | By design: only sounds that sound like a hand clap count | Clap with flat hands |
+| A code does not register though each clap is heard | The claps sounded different from each other (one cupped, one flat) | Make the claps alike; try a 3-clap code at an even pace |
 | Stops after a phone call | Another app had the microphone | Open the app and re-arm |
 | "No microphone, no miracle." | Permission denied | Settings → Apps → The Clappiest → Permissions → Microphone |
 | Silent alarm | Chosen file missing or unsupported | Pick a System sound; the default alarm is the fallback |
