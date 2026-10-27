@@ -31,8 +31,8 @@ import kotlin.math.sqrt
  * @param verifyShape check the sound of each clap, and the similarity of a code's claps.
  * @param fastFloor let the background level follow a loud, steady sound (a sounding alarm) in
  *   both directions within about 50 ms, so a clap is judged against that sound rather than
- *   against the quiet room. Off by default: the slow floor ignores loud frames so claps cannot
- *   raise it.
+ *   against the quiet room. Off by default: the slow floor follows loud frames over seconds, not
+ *   tens of milliseconds, so claps cannot raise it.
  */
 class ClapDetector(
     private val sampleRate: Int,
@@ -138,11 +138,15 @@ class ClapDetector(
             }
         }
 
-        // Background tracks slowly and ignores loud frames so claps don't raise it. With
-        // fastFloor it follows any steady level; pending onsets still freeze it.
+        // Background tracks quickly below 3x its level and only slowly above it, so a clap (tens
+        // of ms) barely moves it while a fan, a TV or traffic (seconds) is absorbed within a few
+        // seconds; otherwise ambient noise above ~3.5x the floor would leave `quiet` false for
+        // good and the detector deaf. With fastFloor it follows any steady level; pending onsets
+        // still freeze it.
         if (onsetMs < 0) {
             if (fastFloor) noiseRms += (rms - noiseRms) * FAST_FLOOR_RATE
             else if (rms < noiseRms * 3f) noiseRms += (rms - noiseRms) * 0.05f
+            else if (pending == null) noiseRms += (rms - noiseRms) * LOUD_FLOOR_RATE
         }
         if (noiseRms < 50f) noiseRms = 50f
         if (onsetMs < 0 && rms < noiseRms * 2f) quiet = true
@@ -209,6 +213,9 @@ class ClapDetector(
         /** Largest brightness ratio allowed between the claps of one code. */
         const val SIMILAR_RATIO = 1.8
         private const val RING = 4096
+
+        /** Per-frame step of the background floor while frames are louder than 3x it (~2 s to settle). */
+        const val LOUD_FLOOR_RATE = 0.005f
 
         /** Per-frame step of the fast background floor (10 ms frames: ~50 ms to settle). */
         const val FAST_FLOOR_RATE = 0.2f

@@ -52,6 +52,8 @@ class ListenerService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
 
     @Volatile private var recordThread: Thread? = null
+    /** The microphone could not be opened; shown in the notification until listening resumes. */
+    private var listenerUnavailable = false
 
     /** Written on the main thread, read by the dismiss thread. */
     @Volatile private var windowOpen = false
@@ -118,6 +120,7 @@ class ListenerService : Service() {
         running = false
         stopListening()
         silence()
+        main.removeCallbacksAndMessages(null)
         super.onDestroy()
     }
 
@@ -142,30 +145,68 @@ class ListenerService : Service() {
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "clappiest:listen")
             .apply { acquire() }
 
-        recordThread = Thread({
-            val rec = openRecorder() ?: return@Thread
-            val buf = ShortArray(SAMPLE_RATE / 50)
+        val thread = Thread({
+            val me = Thread.currentThread()
+            var matched = false
+            val rec = openRecorder()
             try {
-                rec.startRecording()
-                val me = Thread.currentThread()
-                while (recordThread === me) {
-                    val n = rec.read(buf, 0, buf.size)
-                    if (n < 0) break
-                    val matched = when (detector) {
-                        is ClapDetector -> detector.process(buf, n)
-                        is CustomSoundDetector -> detector.process(buf, n)
-                        else -> false
+                if (rec != null && runCatching { rec.startRecording() }.isSuccess) {
+                    main.post {
+                        if (recordThread === me && listenerUnavailable) {
+                            listenerUnavailable = false
+                            refreshListeningNotification()
+                        }
                     }
-                    if (matched) {
-                        main.post { onMatch() }
-                        break
+                    val buf = ShortArray(SAMPLE_RATE / 50)
+                    while (recordThread === me) {
+                        val n = rec.read(buf, 0, buf.size)
+                        if (n < 0) break
+                        matched = when (detector) {
+                            is ClapDetector -> detector.process(buf, n)
+                            is CustomSoundDetector -> detector.process(buf, n)
+                            else -> false
+                        }
+                        if (matched) break
                     }
                 }
             } finally {
-                runCatching { rec.stop() }
-                rec.release()
+                rec?.let { runCatching { it.stop() }; it.release() }
             }
-        }, "clap-listener").apply { start() }
+            // Dropped if stopListening() has since replaced or cleared this thread.
+            main.post {
+                if (recordThread !== me) return@post
+                if (matched) onMatch() else onListenerFailed()
+            }
+        }, "clap-listener")
+        recordThread = thread // Before start: the thread tests `recordThread === me`.
+        thread.start()
+    }
+
+    /**
+     * The microphone could not be opened, or died while listening (another app holds it, a call,
+     * the privacy toggle). Say so, release the wake lock, and try again shortly while the screen
+     * is dark. The next screen-off or settings refresh also starts afresh.
+     */
+    private fun onListenerFailed() {
+        recordThread = null
+        wakeLock?.takeIf { it.isHeld }?.release()
+        wakeLock = null
+        listenerUnavailable = true
+        refreshListeningNotification()
+        main.removeCallbacks(retryListening)
+        main.postDelayed(retryListening, RETRY_LISTEN_MS)
+    }
+
+    private val retryListening: Runnable = Runnable {
+        if (running && !alarm.isPlaying && recordThread == null &&
+            !getSystemService(PowerManager::class.java).isInteractive
+        ) startListening()
+    }
+
+    private fun refreshListeningNotification() {
+        if (running && !alarm.isPlaying) {
+            getSystemService(NotificationManager::class.java).notify(NOTIF_LISTENING, listeningNotification())
+        }
     }
 
     /**
@@ -194,11 +235,16 @@ class ListenerService : Service() {
     }
 
     private fun stopListening() {
-        val t = recordThread ?: return
+        main.removeCallbacks(retryListening)
+        val t = recordThread
         recordThread = null
-        t.join(500)
+        t?.join(500)
         wakeLock?.takeIf { it.isHeld }?.release()
         wakeLock = null
+        if (listenerUnavailable) {
+            listenerUnavailable = false
+            refreshListeningNotification()
+        }
     }
 
     private fun onMatch() {
@@ -237,7 +283,7 @@ class ListenerService : Service() {
             .apply { acquire() }
         windowOpen = false
         stateSince = SystemClock.elapsedRealtime()
-        recordThread = Thread({
+        val thread = Thread({
             val mic = openDismissRecorder() ?: return@Thread
             val rec = mic.record
             dismissMode = if (mic.mayCancel) MODE_CALIBRATING else MODE_WINDOWS
@@ -254,7 +300,7 @@ class ListenerService : Service() {
             val blockMs = 1000 / 50
             var wasQuiet = false
             try {
-                rec.startRecording()
+                if (runCatching { rec.startRecording() }.isFailure) return@Thread
                 dismissReady = true
                 val me = Thread.currentThread()
                 while (recordThread === me) {
@@ -291,7 +337,9 @@ class ListenerService : Service() {
                 rec.release()
                 mic.echo?.release()
             }
-        }, "clap-dismiss").apply { start() }
+        }, "clap-dismiss")
+        recordThread = thread
+        thread.start()
         main.postDelayed(openWindow, ALARM_LEAD_MS)
     }
 
@@ -406,8 +454,11 @@ class ListenerService : Service() {
             .setSmallIcon(R.drawable.ic_clap)
             .setContentTitle("Listening in the dark")
             .setContentText(
-                if (prefs.triggerMode == "custom") "Listening for your custom sound."
-                else "${prefs.clapCount} claps and I'll scream."
+                when {
+                    listenerUnavailable -> "Can't reach the microphone. Trying again."
+                    prefs.triggerMode == "custom" -> "Listening for your custom sound."
+                    else -> "${prefs.clapCount} claps and I'll scream."
+                }
             )
             .setContentIntent(openApp())
             .setOngoing(true)
@@ -434,6 +485,9 @@ class ListenerService : Service() {
         private const val MODE_WINDOWS = 0
         private const val MODE_CALIBRATING = 1
         private const val MODE_CONTINUOUS = 2
+
+        /** Wait before reopening a microphone that failed. */
+        private const val RETRY_LISTEN_MS = 10_000L
 
         /** Silence between replays of the alarm sound while clap-to-silence is on. */
         private const val REPLAY_GAP_MS = 1_000L

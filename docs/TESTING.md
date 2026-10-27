@@ -70,6 +70,9 @@ Expected results assume clap mode, sensitivity 0.5, 3 claps, unless stated.
 | T50 | Voices and tones | Shouting "hey" 3 times, a dog bark recording, doorbell, alarm beeps, whistle | No alarm |
 | T51 | Sharp sounds (known weak) | Typing, mouse clicks, can opening, cutlery on a plate, light switch | Record false matches over 10 min each; expect some (KNOWN_ISSUES) |
 | T52 | Mixed code | Clap, clap, then a door knock as the third | No match for a 3-clap code (the knock is ignored); a 2-clap code matches |
+| T53 | Steady noise | Run a fan, television or tap at normal volume next to the phone; arm; wait 30 s; clap the code | Alarm sounds. Repeat with the room silent for a minute first, then the noise switched on |
+| T54 | Microphone taken | Arm; screen off; start a voice recorder or call from another device's perspective (or toggle the microphone privacy switch); free it | Notification reads "Can't reach the microphone" and listening resumes within about 10 s of release; no crash |
+| T55 | No alarm sound | Choose a file, delete it from storage, trigger the alarm | The default alarm plays; if the phone has none, the alarm volume is not left at maximum and Stop works |
 | T27 | Lock-screen integrity | With a PIN/pattern/biometric set: arm → screen off → screen on, repeat 20×; also after an alarm and after **Stop**; then repeat with the app force-stopped | Lock screen appears every time, identically in both conditions (KNOWN_ISSUES R1) |
 
 ## Result log

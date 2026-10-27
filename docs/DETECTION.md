@@ -15,7 +15,7 @@ A clap is an impulse: sudden, loud against the background, and gone within ~200 
    - `quiet` (the previous frames fell below `2 × noiseRms`; prevents a sustained sound from re-triggering mid-sound)
 3. **Confirm** the clap when `rms` falls below `onsetRms × 0.4` within 200 ms of onset. If it lingers past 200 ms the sequence is abandoned (speech, music, rumble).
 3a. **Verify the sound** ([below](#verifying-that-a-sound-is-a-clap)): a confirmed clap is measured once 32 ms of audio after its onset exists. If it is not clap-like it is ignored as if it had not happened.
-4. **Background** `noiseRms` follows `rms` slowly (factor 0.05 per frame), only while no onset is pending and `rms < 3 × noiseRms`, floored at 50.
+4. **Background** `noiseRms` follows `rms` while no onset is pending, floored at 50: at 0.05 per frame when `rms < 3 × noiseRms`, and at 0.005 per frame (about 2 s to settle) when louder. A clap lasts tens of milliseconds, so it barely moves the floor; a fan, a television or traffic lasts seconds and is absorbed. Without the slow rise, steady noise above about 3.5 × the floor left `quiet` false for good and the detector deaf (fixed; see KNOWN_ISSUES).
 
 ### Sequences
 
@@ -47,7 +47,7 @@ A clap is an impulse: sudden, loud against the background, and gone within ~200 
 
 ### Fast floor (`fastFloor = true`)
 
-The normal background floor ignores loud frames so that claps cannot raise it, which also means it never adapts to a loud steady sound. With `fastFloor` the floor follows any level in both directions at 0.2 per 10 ms frame (about 50 ms to settle). A pending onset still freezes it, so a clap is judged against the steady sound beneath it. A sustained or slowly changing sound produces no onset that decays within 200 ms, so it is rejected as before. Unit tests show the slow floor hears 0 of two claps over a steady tone and the fast floor hears them.
+The normal background floor follows loud frames only slowly (about 2 s to settle), so claps cannot raise it but it is too slow to hear a clap over a sound that has only just begun. With `fastFloor` the floor follows any level in both directions at 0.2 per 10 ms frame (about 50 ms to settle). A pending onset still freezes it, so a clap is judged against the steady sound beneath it. A sustained or slowly changing sound produces no onset that decays within 200 ms, so it is rejected as before. Unit tests show the fast floor hears two claps over a steady tone after 1 s, and the slow floor only after several seconds.
 
 A percussive alarm sound (drum hits, short clicks) can still look like claps. Two such hits within 1.2 s would silence the alarm.
 

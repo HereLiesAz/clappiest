@@ -110,6 +110,35 @@ class ClapDetectorTest {
         assertEquals(1, run(2, silence(1000), clap(), silence(300), clap(), silence(300), finishOnTarget = true))
     }
 
+    // Steady ambient noise (a fan, a TV) must not leave the detector deaf.
+
+    private fun ambient(ms: Int, rms: Int) =
+        ShortArray(rate * ms / 1000) { (rnd.nextDouble(-1.0, 1.0) * rms * 1.732).toInt().toShort() }
+
+    private fun clapOverAmbient(rms: Int): ShortArray {
+        val c = clap(); val a = ambient(40, rms)
+        return ShortArray(c.size) { (c[it] + a[it]).coerceIn(-32768, 32767).toShort() }
+    }
+
+    private fun clapsOverAmbient(n: Int, rms: Int) =
+        (0 until n).flatMap { listOf(clapOverAmbient(rms), ambient(300, rms)) }.toTypedArray()
+
+    @Test fun aQuietStartThenSteadyNoiseDoesNotLeaveItDeaf() {
+        // Floor settles at its minimum in the quiet, then the room gets loud and stays loud.
+        for (rms in listOf(180, 300, 600, 1000)) {
+            val parts = arrayOf(silence(3000), ambient(8000, rms), *clapsOverAmbient(3, rms), ambient(2000, rms))
+            assertEquals("ambient rms $rms", 1, run(3, *parts))
+        }
+    }
+
+    @Test fun steadyNoiseItselfIsNeverACode() =
+        assertEquals(0, run(1, silence(3000), ambient(20000, 600)))
+
+    @Test fun loudSpeechLikeSoundsDoNotRaiseTheFloorEnoughToHideClaps() {
+        // A second of hum before the code must not make claps inaudible afterwards.
+        assertEquals(1, run(3, silence(3000), hum(1000), silence(1500), *claps(3), silence(2000)))
+    }
+
     // fastFloor: hearing claps over a loud, steady sound such as a cancelled alarm's residue.
 
     /** A steady tone standing in for the alarm's residue, rms about 2100. */
@@ -135,10 +164,10 @@ class ClapDetectorTest {
         assertEquals(1, runLive(*parts, fastFloor = true))
     }
 
-    @Test fun theSlowFloorCannotHearClapsOverASteadySound() {
-        // Why fastFloor exists: the slow floor never adapts to a loud steady sound.
-        val parts = arrayOf(steady(1000), clapOverSteady(), steady(300), clapOverSteady(), steady(300))
-        assertEquals(0, runLive(*parts, fastFloor = false))
+    @Test fun theSlowFloorHearsClapsOverASteadySoundOnceItHasSettled() {
+        // fastFloor settles in ~50 ms; the slow floor takes seconds but gets there.
+        val parts = arrayOf(steady(6000), clapOverSteady(), steady(300), clapOverSteady(), steady(300))
+        assertEquals(1, runLive(*parts, fastFloor = false))
     }
 
     @Test fun fastFloorIgnoresTheSteadySoundItself() =

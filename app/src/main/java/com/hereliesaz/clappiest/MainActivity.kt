@@ -245,7 +245,9 @@ private fun Screen(prefs: Prefs) {
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         uri ?: return@rememberLauncherForActivityResult
-        ctx.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        // Some providers refuse a lasting grant; the file then works until the phone restarts, and
+        // the alarm falls back to the default sound if it cannot be read later.
+        runCatching { ctx.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
         prefs.alarmUri = uri; sound = uri
     }
 
