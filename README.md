@@ -12,6 +12,7 @@ Android app (`com.hereliesaz.clappiest`). While armed and the screen is off, it 
 2. Set **Sensitivity**. Higher hears softer claps and forgives more noise.
 3. Pick a **Sound**: a system tone, or any audio file.
 4. **ARM**. A persistent notification confirms it is listening.
+5. Optional: **Choose when** to listen only in some circumstances: hours, not while it seems to be on you, charging, battery, headphones, places, Wi-Fi. See the [user guide](docs/USER_GUIDE.md#when-to-listen).
 
 Silence the alarm by unlocking the phone, tapping **Stop** on the notification, or clapping twice. The alarm pauses a second between replays, tries to cancel itself out of the microphone, and where that fails goes quiet every few seconds so the claps can be heard; turn this off with "Clap twice to silence the alarm".
 

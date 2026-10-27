@@ -152,7 +152,21 @@ Google defines "collect" as transmitting data off the device. The app transmits 
 | Do you provide a way to request data deletion? | Not applicable |
 | Data types | None selected |
 
+The optional place and Wi-Fi rules use location, but only on the phone: the position is compared with saved places in memory and is never stored, logged or transmitted, so by Google's definition (leaving the device) it is not collected. Keep **No** unless that changes, and make sure the privacy policy matches (it does: "When to listen rules").
+
 Re-check this section whenever a dependency, permission or network feature is added.
+
+## Location permissions declaration (background location)
+
+`ACCESS_BACKGROUND_LOCATION` triggers Play's review for sensitive permissions. Answer the form with:
+
+~~~
+The optional "When to listen" feature lets the user pause the find-my-phone microphone listener at places they save (for example, work) or on Wi-Fi networks they save. The phone is usually in a pocket or bag with the screen off when this matters, so the check must run when the app is not on screen. Location is compared with the saved places on the device, held only in memory, never stored, shared or transmitted; the app has no internet permission. Without background access, place and Wi-Fi rules only work while the app is open, which defeats their purpose. The feature is off by default; the user must add a place or network, read an in-app disclosure, and grant the permission.
+~~~
+
+**Demo video** (30 to 60 seconds): open the app → *Choose when* → under *Places* select "Not at these places" → *Save where I am now* → show the disclosure dialog and the system prompts, including "Allow all the time" → return to the app → arm, lock the phone and show the notification change to "Not listening" while at the place.
+
+If the review is refused, remove the place and Wi-Fi rules and the three location permissions (see [PERMISSIONS.md](PERMISSIONS.md)); the other rules need nothing.
 
 ## Foreground service permissions
 

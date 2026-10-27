@@ -7,6 +7,7 @@ Effective: 2026-10-24
 ## Summary
 
 - The app listens through your microphone to hear your clap code. It analyses the sound in memory and discards it.
+- Optional "when to listen" rules can pause listening by time, charging, battery, headphones, whether the phone seems to be on you, a saved place, or a saved Wi-Fi network. They are all off until you turn them on. Location is used only by the place and Wi-Fi rules, only on your phone, and is never stored or sent.
 - It has **no internet permission**. It cannot send anything off your phone.
 - When you open the app it asks the Google Play Store app on your phone whether a newer version exists. That question is made by Google Play, not by this app. You can turn it off.
 - No account, no ads, no analytics, no tracking, no third-party code that collects data.
@@ -28,13 +29,14 @@ Stored only in the app's private storage:
 |---|---|
 | Clap count, sensitivity, trigger mode | Remember your settings |
 | Alarm sound choice (a reference to a system sound or a file you picked) | Play your chosen sound |
+| "When to listen" rules you set: hours and days, charging, battery and headphones choices, and, if you add them, the **names and coordinates of places you saved** and the **names of Wi-Fi networks you saved** | Decide when to listen |
 | **Custom sound recording** (about 1.5 seconds of audio), only if you record one in Custom Sound mode | Compare live sound against it |
 
 The custom recording is the only audio the app ever saves. It stays on your phone and is used only for matching. Chosen alarm files are referenced, not copied.
 
 ## Backups
 
-Android's Auto Backup may copy the app's stored data, including a custom sound recording if you made one, to your Google Account, according to your device's backup settings. That backup is handled by Google under Google's terms. The developer cannot access it. To avoid it, turn off backup in Android settings or do not record a custom sound.
+Android's Auto Backup may copy the app's stored data, including a custom sound recording if you made one and the places and Wi-Fi names you saved, to your Google Account, according to your device's backup settings. That backup is handled by Google under Google's terms. The developer cannot access it. To avoid it, turn off backup in Android settings or do not record a custom sound.
 
 ## Update check
 
@@ -44,10 +46,20 @@ The check works only for copies that Google Play installed. For any other copy i
 
 If a newer version exists, the app shows a popup. **Update** opens the app's Google Play page. **Later** hides that version for three days. The app stores the time of the last check, and which version you tapped **Later** on and when. It never downloads or installs anything itself. Turn the check off with **Check for updates** on the main screen.
 
+## When to listen rules
+
+You can ask the app to listen only in some circumstances. Each rule is optional and off by default.
+
+- **Hours, charging, battery, headphones:** read from Android on the phone.
+- **On me:** the app reads the accelerometer and proximity sensors while the screen is off, to guess whether the phone is in a hand or pocket. The readings are measured as they arrive and discarded; nothing is stored or sent.
+- **Places and Wi-Fi:** if you add one, Android asks for permission to use your location. The app then uses your location, including while the app is closed or the screen is off, only to compare it with the places you saved, and reads the name of the Wi-Fi network you are connected to only to compare it with the networks you saved. The current position is held in memory and is not stored, logged, shared or transmitted. The places and names you saved stay on your phone. You can refuse location; the rest of the app and its other rules work without it.
+
+A rule the app cannot check (permission refused, no sensor) never stops it listening.
+
 ## What the app does not do
 
 - No network access, so no uploading, syncing or remote logging.
-- No location, contacts, camera, calls, messages, or advertising ID.
+- No location use unless you add a place or Wi-Fi rule; no contacts, camera, calls, messages, or advertising ID.
 - No analytics, crash-reporting or advertising libraries.
 - No sale, sharing or disclosure of data. There is none to share.
 
@@ -58,6 +70,7 @@ If a newer version exists, the app shows a popup. **Update** opens the app's Goo
 | Microphone | Hearing your clap code |
 | Notifications | The required "listening" notice and the alarm's Stop button |
 | Foreground service (microphone) and wake lock | Listening reliably with the screen off |
+| Location (optional), Wi-Fi and network state | Place and Wi-Fi rules only |
 
 Details: [PERMISSIONS.md](PERMISSIONS.md).
 

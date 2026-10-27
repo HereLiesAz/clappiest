@@ -73,6 +73,22 @@ Expected results assume clap mode, sensitivity 0.5, 3 claps, unless stated.
 | T53 | Steady noise | Run a fan, television or tap at normal volume next to the phone; arm; wait 30 s; clap the code | Alarm sounds. Repeat with the room silent for a minute first, then the noise switched on |
 | T54 | Microphone taken | Arm; screen off; start a voice recorder or call from another device's perspective (or toggle the microphone privacy switch); free it | Notification reads "Can't reach the microphone" and listening resumes within about 10 s of release; no crash |
 | T55 | No alarm sound | Choose a file, delete it from storage, trigger the alarm | The default alarm plays; if the phone has none, the alarm volume is not left at maximum and Stop works |
+| T56 | Hours rule | Set "Never during these hours" for a window starting 3 minutes from now; arm; screen off | Listens now; within a few minutes of the start the notification reads "Not listening / Resting: scheduled off"; clapping does nothing; after the end it listens again |
+| T57 | Overnight window | Window 22:00 to 06:00, set the phone clock inside it | Paused; outside it listening |
+| T58 | Charging | "Not while charging"; arm; screen off; plug in, then unplug | Pauses on plug-in, resumes on unplug, each within a few seconds |
+| T59 | Battery floor | Set a level just above the current charge | Paused with "battery below N%" |
+| T60 | Headphones | "Not while headphones are connected"; connect wired, then Bluetooth earbuds | Pauses on each; resumes when removed |
+| T61 | On me, walking | "Not while it seems to be on me"; arm; screen off; walk with the phone in a pocket | Notification becomes "Resting: on you" within about 10 s of walking; clapping does nothing |
+| T62 | On me, table | Put the phone face-up on a table, screen off | Within about 45 s of stillness it listens again; clapping triggers |
+| T63 | On me, still pocket | Sit still for 5 minutes with the phone in a trouser pocket | Record whether it stays "on you" (expected: yes, from the body's tremor); repeat sitting very still, and with the phone in a bag |
+| T71 | On me, couch cushions | Drop the phone between sofa cushions, screen off; nobody sits on the sofa | "Resting: on you" for about 90 s at most, then it listens; clap it. Repeat while sitting on the cushion and record what it does |
+| T64 | On me, battery | Rule on; 1 h with the screen off, phone on a table | Record battery drop against the same hour with the rule off |
+| T65 | Place | Save "Work" while there; set "Not at these places"; arm; screen off; stay, then leave 1 km | Paused at the place (within about 5 minutes of the screen going off); listens after leaving |
+| T66 | Location access | With location denied, add a place rule | The line says it can't be checked; the app keeps listening; "Allow location" shows the disclosure, then the system prompt; granting "while using" then shows the settings step |
+| T67 | Wi-Fi | Save the home network; "Not on these networks"; arm; screen off; connect and disconnect | Pauses on that network, resumes off it |
+| T68 | Alarm is never cut | Trigger the alarm, then change a rule that would pause it | The alarm keeps sounding; after silencing, the rule applies |
+| T69 | Rules cleared | Turn every rule off | Listening returns whenever the screen is off |
+| T70 | TalkBack | Walk the "When to listen" screen with TalkBack | Each choice announces its label and selected state; day buttons announce On/Off |
 | T27 | Lock-screen integrity | With a PIN/pattern/biometric set: arm → screen off → screen on, repeat 20×; also after an alarm and after **Stop**; then repeat with the app force-stopped | Lock screen appears every time, identically in both conditions (KNOWN_ISSUES R1) |
 
 ## Result log

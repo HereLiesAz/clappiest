@@ -53,6 +53,11 @@ class Prefs(context: Context) {
             putString("customSound", base64)
         }
 
+    /** When the app may listen; see [Rules]. Stored as text by [RulesCodec]. */
+    var rules: Rules
+        get() = RulesCodec.decode(sp.getString("rules", null))
+        set(v) = sp.edit { putString("rules", RulesCodec.encode(v)) }
+
     /** Null means the system default alarm. */
     var alarmUri: Uri?
         get() = sp.getString("alarmUri", null)?.let(Uri::parse)

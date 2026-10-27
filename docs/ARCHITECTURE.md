@@ -14,6 +14,12 @@ Single-module Android app (`:app`), Kotlin, Jetpack Compose. `minSdk 26`, `targe
 | `CustomSoundDetector.kt` | Pure Kotlin. Matches a recorded template against the stream. |
 | `AlarmPlayer.kt` | Loops the chosen sound on the alarm stream at maximum volume; restores volume on stop. |
 | `UpdateChecker.kt` | Asks Google Play (through the Play Store app) whether a newer version exists; opens the Play listing. |
+| `RulesActivity.kt` | Compose screen "When to listen". Edits the rules, requests location only when a place or Wi-Fi rule is used (disclosure first). |
+| `ListenRules.kt` | Pure Kotlin. `Rules`, the conditions they test, and `RuleEngine.evaluate` which returns `Listen` or `Pause(reason)`. Unknown conditions never pause. |
+| `RulesCodec.kt` | Pure Kotlin. Stores `Rules` as `key=value` text in one preference; tolerant of damage. |
+| `BodyEstimator.kt` | Pure Kotlin. Guesses whether the phone is on a person: accelerometer motion, or a covered proximity sensor plus body tremor (so couch cushions do not count as a pocket). |
+| `ConditionWatcher.kt` | Android glue for the rules: battery, audio devices, Wi-Fi, location, motion sensors and the schedule alarm. Registers only what the rules need, and the costly sources only while the screen is off. |
+| `LocationAccess.kt` | None / while-in-use / all-the-time location state. |
 | `Snooze.kt` | Pure Kotlin. The "Later" rule. |
 | `Prefs.kt` | `SharedPreferences` wrapper: clap count, sensitivity, trigger mode, custom sound bytes, alarm URI. |
 
@@ -40,7 +46,20 @@ Single-module Android app (`:app`), Kotlin, Jetpack Compose. `minSdk 26`, `targe
 1. `MainActivity` checks `RECORD_AUDIO` (and `POST_NOTIFICATIONS` on API 33+), then `ContextCompat.startForegroundService`.
 2. `onStartCommand` calls `startForeground(..., FOREGROUND_SERVICE_TYPE_MICROPHONE)`, registers the screen receiver once, then restarts the detector so changed settings apply.
 3. `START_NOT_STICKY`: Android 11+ forbids starting a microphone service from the background, so a system restart could not recover it anyway. The user re-arms.
-4. `onDestroy` unregisters the receiver, stops listening, silences the alarm.
+4. `onDestroy` unregisters the receiver, stops watching conditions, stops listening, silences the alarm.
+
+### Rules
+
+`ListenerService.applyRules()` is the one place that decides whether the find-the-phone listener runs. It is called on screen on/off, when `ConditionWatcher` reports a change, after the schedule alarm fires, after a failed microphone retry, and after the alarm is silenced:
+
+~~~
+screen on            -> stop listening
+screen off, rules ok -> start listening (no-op if already)
+screen off, paused   -> stop listening, notification "Not listening / Resting: <reason>"
+alarm sounding       -> nothing changes; rules never cut an alarm
+~~~
+
+The hours rule needs no wake lock while paused: one inexact `AlarmManager` alarm (`setAndAllowWhileIdle`) wakes the service at the next open or close, so it may be a few minutes late. The on-body rule holds a partial wake lock while the screen is off, because sensors do not report while the CPU sleeps; this costs about as much as listening. Places use network-provider location updates every 5 minutes with the screen off. Fixes older than 30 minutes or less accurate than 500 m are treated as unknown.
 
 `ListenerService.running` is a Compose `mutableStateOf` read by the UI. It is process-local; it resets when the process dies.
 
@@ -101,6 +120,7 @@ alarm start ──4.0 s── window (mute) ──3.0 s── unmute ── verd
 | `triggerMode` | string | `claps` or `custom` |
 | `customSound` | string | Base64 of 1.5 s PCM16 mono audio (~64 KB) |
 | `alarmUri` | string | URI of the chosen alarm sound |
+| `rules` | string | The "When to listen" rules as `key=value` lines, including any saved place names and coordinates and Wi-Fi network names |
 
 A chosen audio file keeps a persisted read grant (`takePersistableUriPermission`). The file is not copied.
 
