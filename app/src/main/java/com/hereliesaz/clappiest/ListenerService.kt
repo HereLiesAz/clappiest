@@ -247,6 +247,8 @@ class ListenerService : Service() {
             // Heard over a cancelled alarm: judged against the alarm's own level.
             val liveDetector = ClapDetector(
                 SAMPLE_RATE, DISMISS_CLAPS, prefs.sensitivity, finishOnTarget = true, fastFloor = true,
+                // Over the alarm's residue a clap's sound is mixed with it, so it cannot be judged.
+                verifyShape = false,
             )
             val buf = ShortArray(SAMPLE_RATE / 50)
             val blockMs = 1000 / 50

@@ -63,6 +63,13 @@ Expected results assume clap mode, sensitivity 0.5, 3 claps, unless stated.
 | T43 | Not installed by Play | Sideload the GitHub APK; open the app | No popup, no crash, no delay opening the app |
 | T44 | Throttle | Open the app 5 times within 12 hours | Play asked once |
 | T45 | No internet permission | `aapt2 dump permissions` on the release APK | `INTERNET` absent |
+| T46 | Real clap pass rate | 30 flat-handed claps each at 0.5, 1, 2 m, phone on a table, one at a time (1 s apart) | Set a 2-clap code and clap in pairs, 15 pairs per distance; each pair registers only if both claps pass, so pair success = (per-clap rate)². Target ≥ 81% of pairs (90% per clap) |
+| T47 | Cupped and soft claps | Repeat T46 with cupped hands, fingers on palm, and light claps | Record the pass rate; expect cupped claps to be lower-pitched. If low, relax `ClapShape` |
+| T48 | Code success | 20 attempts each of a 2-, 3-, 4-clap code at a natural rhythm | Target ≥ 85% success; record failures and whether the claps sounded different |
+| T49 | Thumps and knocks | Door slam, table knock, knuckle on phone case, stamping, dropping a book; 20 each, 3 in a row | No alarm |
+| T50 | Voices and tones | Shouting "hey" 3 times, a dog bark recording, doorbell, alarm beeps, whistle | No alarm |
+| T51 | Sharp sounds (known weak) | Typing, mouse clicks, can opening, cutlery on a plate, light switch | Record false matches over 10 min each; expect some (KNOWN_ISSUES) |
+| T52 | Mixed code | Clap, clap, then a door knock as the third | No match for a 3-clap code (the knock is ignored); a 2-clap code matches |
 | T27 | Lock-screen integrity | With a PIN/pattern/biometric set: arm → screen off → screen on, repeat 20×; also after an alarm and after **Stop**; then repeat with the app force-stopped | Lock screen appears every time, identically in both conditions (KNOWN_ISSUES R1) |
 
 ## Result log

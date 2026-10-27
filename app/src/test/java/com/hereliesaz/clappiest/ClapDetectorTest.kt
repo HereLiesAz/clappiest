@@ -16,6 +16,30 @@ class ClapDetectorTest {
         (rnd.nextInt(-30000, 30000) * env).toInt().toShort()
     }
 
+    /** A low thump: a door slam, a knock, a footstep. Loud and brief, but not a clap. */
+    private fun thump(): ShortArray = ShortArray(rate * 100 / 1000) { i ->
+        (30000 * Math.sin(2 * Math.PI * 150 * i / rate) * Math.exp(-i / (rate * 0.03)) + rnd.nextInt(-300, 300))
+            .toInt().toShort()
+    }
+
+    /** A tone burst: an alarm beep, a bark, a whistle. Loud and brief, but not a clap. */
+    private fun beep(): ShortArray = ShortArray(rate * 100 / 1000) { i ->
+        (30000 * Math.sin(2 * Math.PI * 2000 * i / rate) * Math.exp(-i / (rate * 0.03))).toInt().toShort()
+    }
+
+    /**
+     * A clap-like burst that is band-limited (about 0.7-3 kHz, centroid ~1.7 kHz against ~4 kHz for
+     * white noise): it passes the shape test but sounds clearly different from [clap].
+     */
+    private fun dullClap(): ShortArray {
+        val n = rate * 40 / 1000
+        val raw = IntArray(n + 12) { rnd.nextInt(-30000, 30000) }
+        fun avg(i: Int, k: Int) = (0 until k).sumOf { raw[i + it] }.toDouble() / k
+        return ShortArray(n) { i ->
+            ((avg(i, 4) - avg(i, 12)) * 1.5 * Math.exp(-i / (rate * 0.006))).toInt().toShort()
+        }
+    }
+
     /** Distant clap in a live room: modest peak, slow reverberant tail. */
     private fun roomClap(): ShortArray = ShortArray(rate * 150 / 1000) { i ->
         val env = Math.exp(-i / (rate * 0.03)).toFloat()
@@ -27,8 +51,11 @@ class ClapDetectorTest {
         (20000 * Math.sin(2 * Math.PI * 220 * i / rate)).toInt().toShort()
     }
 
-    private fun run(target: Int, vararg parts: ShortArray, finishOnTarget: Boolean = false): Int {
-        val d = ClapDetector(rate, target, 0.5f, finishOnTarget)
+    private fun run(
+        target: Int, vararg parts: ShortArray,
+        finishOnTarget: Boolean = false, verifyShape: Boolean = true,
+    ): Int {
+        val d = ClapDetector(rate, target, 0.5f, finishOnTarget, verifyShape = verifyShape)
         var hits = 0
         for (p in parts) if (d.process(p)) hits++
         return hits
@@ -55,6 +82,32 @@ class ClapDetectorTest {
     @Test fun distantReverberantClapsTrigger() {
         val parts = (0 until 3).flatMap { listOf(roomClap(), silence(250)) }.toTypedArray()
         assertEquals(1, run(3, silence(1000), *parts, silence(2000)))
+    }
+
+    // Verifying that a loud, brief sound is actually a clap.
+
+    @Test fun thumpsAreNotClaps() =
+        assertEquals(0, run(3, silence(1000), thump(), silence(300), thump(), silence(300), thump(), silence(2000)))
+
+    @Test fun tonesAreNotClaps() =
+        assertEquals(0, run(3, silence(1000), beep(), silence(300), beep(), silence(300), beep(), silence(2000)))
+
+    @Test fun withoutShapeCheckThumpsAreCounted() =
+        // The failure this check exists to prevent.
+        assertEquals(1, run(3, silence(1000), thump(), silence(300), thump(), silence(300), thump(), silence(2000), verifyShape = false))
+
+    @Test fun aThumpAmongClapsIsIgnored() =
+        assertEquals(1, run(3, silence(1000), clap(), silence(300), thump(), silence(300), clap(), silence(300), clap(), silence(2000)))
+
+    @Test fun clapsThatSoundDifferentAreNotOneCode() =
+        assertEquals(0, run(3, silence(1000), clap(), silence(300), clap(), silence(300), dullClap(), silence(2000)))
+
+    @Test fun aDullClapAloneIsStillAClap() =
+        assertEquals(1, run(3, silence(1000), dullClap(), silence(300), dullClap(), silence(300), dullClap(), silence(2000)))
+
+    @Test fun finishOnTargetNeedsSimilarClaps() {
+        assertEquals(0, run(2, silence(1000), clap(), silence(300), dullClap(), silence(300), finishOnTarget = true))
+        assertEquals(1, run(2, silence(1000), clap(), silence(300), clap(), silence(300), finishOnTarget = true))
     }
 
     // fastFloor: hearing claps over a loud, steady sound such as a cancelled alarm's residue.

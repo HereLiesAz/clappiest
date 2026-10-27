@@ -15,6 +15,10 @@ Clap mode has never run on a physical device. Everything below that concerns it 
 - **The update check works only for Google Play installs.** Play answers only for copies it installed ("owned" by the user's Google account). A copy installed from GitHub never shows the popup, and the check fails quietly. Seeing GitHub updates would need `INTERNET`, which the app deliberately does not have. T40, T43.
 - **The popup does not name the new version**: Play reports a version code only. It does reflect what Play will actually offer this device (review, staged rollout), so it will not announce an update Play has not yet released.
 - **A Google library is now in the app** (Play app-update 2.1.0, which brings `play-services-basement` and `play-services-tasks`). It adds no permission (T45).
+- **The clap shape check keeps about 95% of claps, so a code is accepted with probability 0.95ⁿ**: 86% for 3 claps, 81% for 4, 77% for 5, if that rate holds on a phone. That is measured on applause in ESC-50, not on single claps near a phone microphone. Cupped-hand claps are lower-pitched and may fail it. T46–T52.
+- **Sharp broadband sounds still pass the shape check**: can opening, clock ticks, glass, mouse clicks, keyboard typing (6–40% removed). No single-transient measure tried separates them from a clap. A 3-clap code still sees about 15 false matches per hour of that sound playing continuously. Longer codes are safer.
+- **The similarity rule (centroids within 1.8×) is untested on real deliberate claps.** Real claps from one person should sound alike; if codes are rejected, raise `SIMILAR_RATIO`.
+- **Clapping over a sounding alarm is not shape-checked** (`verifyShape = false`): the alarm's residue is mixed into the clap. The echo guard, two-claps rule and `fastFloor` are its only protection.
 - **Percussive alarm sounds** can be heard as claps by the always-on detector; two in 1.2 s silence the alarm. T38.
 - **Clap-to-silence is a short-pause alarm.** A user who finds the phone by following an unbroken tone gets gaps; the setting turns this off.
 
