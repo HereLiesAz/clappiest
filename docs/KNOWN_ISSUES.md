@@ -1,6 +1,6 @@
 # Known issues
 
-Verified 2026-10-24 against `main` at 0.1.8 (`dedef62`) and the published APK. Severity: **S1** feature does not work; **S2** wrong or risky behaviour; **S3** robustness or hygiene; **S4** polish.
+Verified 2026-10-24 against `main` at 0.1.8 (`dedef62`) and the published APK; the entries marked fixed were changed afterwards and have not run on a device. Severity: **S1** feature does not work; **S2** wrong or risky behaviour; **S3** robustness or hygiene; **S4** polish.
 
 ## Unverified
 
@@ -22,6 +22,16 @@ Clap mode has never run on a physical device. Everything below that concerns it 
 - **Percussive alarm sounds** can be heard as claps by the always-on detector; two in 1.2 s silence the alarm. T38.
 - **Clap-to-silence is a short-pause alarm.** A user who finds the phone by following an unbroken tone gets gaps; the setting turns this off.
 
+- **"When to listen" has never run on a device.** The rule logic, storage and body estimator are unit-tested on the JVM; sensors, location, the schedule alarm and the permission flow are not. T56–T70.
+- **The on-body estimate is a guess.** Android gives apps no on-body sensor for phones, so it uses motion (spread of acceleration above 0.12 m/s² in a second, held for 45 s) and, for pockets, a covered proximity sensor plus body tremor (spread above 0.05 m/s², held for 90 s), the same accelerometer idea as Google's Extend Unlock on-body detection, which no app can query. Thresholds are untuned. Misreads: a phone between couch cushions with someone sitting on them looks pocketed; a phone in the pocket of someone perfectly still looks like a table; a phone on a moving train looks carried.
+- **Sensors with the screen off need a wake lock** and may be throttled on some phones; with the on-body rule on, battery use is about that of listening. If sensors are throttled the rule reads "unknown" and listening continues.
+- **Location with the screen off is best-effort.** Network-provider fixes every 5 minutes, and only if "Allow all the time" was granted; Android 12+ users may grant approximate location only (fine for 250 m places, poor for 100 m). A phone in Doze may deliver fixes late.
+- **Reading a Wi-Fi network's name** uses `WifiManager.connectionInfo` (deprecated) because the replacement needs a network callback with location info; some Android versions return "unknown", in which case the rule is skipped.
+- **The hours rule is inexact**: `setAndAllowWhileIdle` may fire minutes late in Doze.
+- **Unknown means listen.** Every rule fails open, because a missed lost-phone is worse than listening where the user did not want it.
+- **Background location is a Play review risk** ([PERMISSIONS.md](PERMISSIONS.md)).
+- **Saved places are in Auto Backup** until `allowBackup` is turned off (issue 7).
+
 ## Reported, unconfirmed
 
 ### R1. Lock screen skipped when the screen turns on (user report, 2026-10-24)
@@ -35,6 +45,10 @@ Plausible interactions, none proven: an OEM setting such as face unlock going st
 Decisive test: with the app force-stopped (or uninstalled), does it still happen? Record model, Android/OEM version, lock method, and whether it needs the app armed, an alarm to have played, or neither. See [TESTING.md](TESTING.md) T27.
 
 ## Issues
+
+### 0. Steady background noise made the clap detector deaf (S1) — fixed
+
+The background floor ignored frames louder than 3× itself, and an onset needs quiet before it (RMS under 2× the floor). After a quiet start the floor sits at its minimum of 50, so steady noise of RMS 180 or more (about −45 dBFS: a fan, a television, traffic) kept `quiet` false forever while the notification still read "Listening". Reproduced on the real `ClapDetector`: ambient RMS 170 worked, 180 and above never fired again, after 10 s or 120 s alike. Now the floor follows louder frames at 0.005 per frame (about 2 s), so it catches up with ambient noise (tests in `ClapDetectorTest`). A rejected loud sound (speech, a long hum) raises the floor briefly. Against ESC-50 the false-match count for a 3-clap code with the shape check went from 28 to 26 of 920 clips; for 2 claps from 56 to 59, for 4 from 14 to 22. T53.
 
 ### 1. Custom-sound detector cannot match a re-whistle (S1)
 
@@ -78,9 +92,9 @@ Fix: tie it to `Lifecycle.Event.ON_START`/`ON_STOP`, key it on `armed` and permi
 
 `AndroidManifest.xml:11`: `allowBackup="true"` with no extraction rules, so `shared_prefs/clappiest.xml`, holding the Base64 recording, can be backed up to the user's Google Account. [PRIVACY_POLICY.md](PRIVACY_POLICY.md) discloses this. Preferable: `allowBackup="false"`, or `dataExtractionRules`/`fullBackupContent` excluding the preferences file; then delete the "Backups" section from the policy.
 
-### 8. Silent failure when the microphone is unavailable or lost (S2)
+### 8. Silent failure when the microphone is unavailable or lost (S2) — fixed
 
-`ListenerService.kt:145` returns from the thread if no `AudioRecord` initialises, yet the notification still reads "Listening in the dark". A call or another app that takes the microphone, or a revoked permission, leaves the same false state. Surface the failure (notification text, retry with backoff, `AudioRecord` state callback), and stop the service if permission is gone.
+A microphone that could not be opened, could not start, or died mid-run left the wake lock held and the notification reading "Listening in the dark"; `startRecording()` throwing took the whole app down. Now the listener thread reports back to the service, which releases the wake lock, shows "Can't reach the microphone. Trying again." and retries every 10 s while the screen is off. A match posted after listening was stopped or restarted is dropped. Not covered: a revoked permission still retries rather than stopping the service. T20, T53.
 
 ### 9. No permission rationale (S3)
 
@@ -110,7 +124,7 @@ GitHub issues #3 (Play package not found, resolved) and #5 (an earlier release f
 
 - Foreground service declares `foregroundServiceType="microphone"` with `FOREGROUND_SERVICE_MICROPHONE`; start is user-initiated; `START_NOT_STICKY` matches the Android 11+ rule.
 - Screen receiver is `RECEIVER_NOT_EXPORTED`; registered once; unregistered in `onDestroy`.
-- `AlarmPlayer` restores the previous volume and falls back to the default alarm and ringtone.
+- `AlarmPlayer` restores the previous volume and falls back to the default alarm and ringtone. If no sound loads at all, it leaves the volume alone, and Stop, unlock and the notification still end the alarm.
 - Release build uses R8 and produces `mapping.txt`; `versionCode`/`versionName` overrides work.
 - No `INTERNET` permission in the shipped APK; permissions match [PERMISSIONS.md](PERMISSIONS.md).
 - Alarm audio uses `USAGE_ALARM`, so silent and vibrate modes do not mute it.

@@ -45,6 +45,18 @@ What you will notice depends on the result:
 - If the alarm stops and stays quiet after your claps, it worked.
 - Prefer an unbroken alarm? Turn off "Clap twice to silence the alarm". Unlock and **Stop** still work.
 
+## When to listen
+
+By default the app listens whenever the screen is off and it is armed. **Choose when** on the main screen lets you narrow that. Every rule is optional:
+
+- **Hours:** never (or only) during chosen days and times. "Never during" Monday to Friday, 9:00 to 17:00 covers a workday. It switches within a few minutes of the time.
+- **On me:** not while the phone seems to be on you (in a hand, a pocket, a bag), since you know where it is. This is an estimate from motion and the proximity sensor. A phone in a pocket is recognised by a covered proximity sensor plus the faint tremor of a body; a phone that has slid between couch cushions lies dead still, so it stops counting as pocketed about a minute and a half after it lands. A phone in the pocket of someone sitting perfectly still can look like one on a table. It uses some battery while the screen is off.
+- **Charging**, **Battery** (don't listen below a level) and **Headphones** (wired, USB or Bluetooth audio, including a car).
+- **Places:** not at, or only at, places you save with **Save where I am now**. Needs location, which the app asks for only here, and only "all the time" works with the screen off.
+- **Wi-Fi:** not on, or only on, networks you save. Also needs location, because Android treats the network's name as location data.
+
+While a rule pauses listening, the notification reads **Not listening** and says why. A rule the app cannot check, such as location refused, never stops it listening. Rules never cut off a sounding alarm.
+
 ## Disarm
 
 Open the app and tap **DISARM**.
@@ -70,11 +82,13 @@ The alarm sets the alarm volume to maximum and restores your setting afterwards.
 | Misses claps | Sensitivity too low; muffled by pocket or bag; noisy room; dull claps | Raise it; test at the distance you expect; clap flat-handed and crisply, all alike |
 | Ignores a knock or a bang | By design: only sounds that sound like a hand clap count | Clap with flat hands |
 | A code does not register though each clap is heard | The claps sounded different from each other (one cupped, one flat) | Make the claps alike; try a 3-clap code at an even pace |
-| Stops after a phone call | Another app had the microphone | Open the app and re-arm |
+| Notification says "Can't reach the microphone" | A call or another app holds the microphone, or the privacy toggle is off | Nothing: it retries every 10 s while the screen is off. End the call or free the microphone |
 | "No microphone, no miracle." | Permission denied | Settings → Apps → The Clappiest → Permissions → Microphone |
 | Silent alarm | Chosen file missing or unsupported | Pick a System sound; the default alarm is the fallback |
 | Two claps don't silence it | Clapped while the alarm was sounding on a phone that cannot cancel it; sensitivity too low; too far away | Clap during a quiet moment, closer, or raise sensitivity |
 | Alarm silences itself unexpectedly | A percussive alarm sound sounds like claps to the detector | Choose a smoother sound, lower sensitivity, or turn off clap-to-silence |
+| Notification says "Not listening" | A "When to listen" rule is pausing it; the notification says which | Open **Choose when** and change or clear that rule |
+| A place or Wi-Fi rule does nothing | Location is not allowed "all the time", or location is off | **Choose when**: the line under the rule says what is missing |
 | Alarm keeps pausing | Clap-to-silence is on | Turn it off for an unbroken alarm |
 
 ## Updates

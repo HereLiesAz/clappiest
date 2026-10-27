@@ -64,6 +64,14 @@ import androidx.core.content.ContextCompat
 import kotlin.math.sqrt
 
 class MainActivity : ComponentActivity() {
+    /** Bumped on resume so values edited in another screen (the rules) are re-read. */
+    private val resumes = mutableIntStateOf(0)
+
+    override fun onResume() {
+        super.onResume()
+        resumes.intValue++
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -71,13 +79,13 @@ class MainActivity : ComponentActivity() {
                 Surface(
                     color = MaterialTheme.colorScheme.background,
                     contentColor = MaterialTheme.colorScheme.onBackground
-                ) { Screen(Prefs(this)) }
+                ) { Screen(Prefs(this), resumes.intValue) }
             }
         }
     }
 }
 
-private val ClappiestColorScheme = darkColorScheme(
+internal val ClappiestColorScheme = darkColorScheme(
     primary = Color(0xFF498C71),
     onPrimary = Color.White,
     secondary = Color(0xFFBB361C),
@@ -94,7 +102,7 @@ private val requiredPermissions = buildList {
 }.toTypedArray()
 
 @Composable
-private fun Screen(prefs: Prefs) {
+private fun Screen(prefs: Prefs, resumes: Int) {
     val ctx = LocalContext.current
     var triggerMode by remember { mutableStateOf(prefs.triggerMode) }
     var claps by remember { mutableIntStateOf(prefs.clapCount) }
@@ -245,7 +253,9 @@ private fun Screen(prefs: Prefs) {
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         uri ?: return@rememberLauncherForActivityResult
-        ctx.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        // Some providers refuse a lasting grant; the file then works until the phone restarts, and
+        // the alarm falls back to the default sound if it cannot be read later.
+        runCatching { ctx.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
         prefs.alarmUri = uri; sound = uri
     }
 
@@ -398,6 +408,13 @@ private fun Screen(prefs: Prefs) {
                     fontSize = 12.sp,
                 )
             }
+        }
+
+        Section("When to listen") {
+            val summary = remember(resumes) { RulesActivity.summary(prefs.rules) }
+            Text(summary, fontSize = 16.sp)
+            Spacer(Modifier.height(6.dp))
+            OutlinedButton(onClick = { RulesActivity.open(ctx) }) { Text("Choose when") }
         }
 
         Section("Updates") {
