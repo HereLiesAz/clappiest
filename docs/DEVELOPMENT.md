@@ -9,7 +9,7 @@
 | Gradle | Wrapper (`./gradlew`) |
 | AGP / Kotlin | 9.4.1 / 2.2.10 (`gradle/libs.versions.toml`) |
 
-No NDK is needed. `ndkVersion` in `app/build.gradle.kts` is unused (KNOWN_ISSUES #10).
+No NDK is installed by hand, but keep `ndkVersion` in `app/build.gradle.kts`: Compose ships a small native library (`libandroidx.graphics.path.so`) whose symbols the release build strips with the pinned NDK (KNOWN_ISSUES #10).
 
 Create `local.properties` (git-ignored) with `sdk.dir=/path/to/Android/Sdk`.
 
@@ -28,7 +28,7 @@ Pass `-PversionCodeOverride=42 -PversionNameOverride=0.1.0.7` to mimic the publi
 
 `ClapDetectorTest` generates synthetic PCM (impulse-with-decay claps, a sustained tone, a reverberant clap) and asserts: exact count matches, too few/many do not, separated groups do not combine, sustained sound is ignored, repeats trigger again, distant reverberant claps trigger.
 
-Gaps: no tests for `CustomSoundDetector`, `Prefs`, or service logic. **No CI runs the unit tests**; the central release workflows only build. See KNOWN_ISSUES #11.
+Gaps: no tests for `CustomSoundDetector`, `Prefs`, or service logic. `.github/workflows/ci.yml` runs the unit tests on pull requests and pushes to `main`; the central release workflows only build, so require that check in branch protection. See KNOWN_ISSUES #11.
 
 ## Conventions
 
