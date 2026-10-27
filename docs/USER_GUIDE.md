@@ -50,7 +50,7 @@ What you will notice depends on the result:
 By default the app listens whenever the screen is off and it is armed. **Choose when** on the main screen lets you narrow that. Every rule is optional:
 
 - **Hours:** never (or only) during chosen days and times. "Never during" Monday to Friday, 9:00 to 17:00 covers a workday. It switches within a few minutes of the time.
-- **On me:** not while the phone seems to be on you (in a hand, a pocket, a bag), since you know where it is. This is an estimate from motion and the proximity sensor. A phone resting in a still pocket can look like one on a table, and it uses some battery while the screen is off.
+- **On me:** not while the phone seems to be on you (in a hand, a pocket, a bag), since you know where it is. This is an estimate from motion and the proximity sensor. A phone in a pocket is recognised by a covered proximity sensor plus the faint tremor of a body; a phone that has slid between couch cushions lies dead still, so it stops counting as pocketed about a minute and a half after it lands. A phone in the pocket of someone sitting perfectly still can look like one on a table. It uses some battery while the screen is off.
 - **Charging**, **Battery** (don't listen below a level) and **Headphones** (wired, USB or Bluetooth audio, including a car).
 - **Places:** not at, or only at, places you save with **Save where I am now**. Needs location, which the app asks for only here, and only "all the time" works with the screen off.
 - **Wi-Fi:** not on, or only on, networks you save. Also needs location, because Android treats the network's name as location data.

@@ -17,7 +17,7 @@ Single-module Android app (`:app`), Kotlin, Jetpack Compose. `minSdk 26`, `targe
 | `RulesActivity.kt` | Compose screen "When to listen". Edits the rules, requests location only when a place or Wi-Fi rule is used (disclosure first). |
 | `ListenRules.kt` | Pure Kotlin. `Rules`, the conditions they test, and `RuleEngine.evaluate` which returns `Listen` or `Pause(reason)`. Unknown conditions never pause. |
 | `RulesCodec.kt` | Pure Kotlin. Stores `Rules` as `key=value` text in one preference; tolerant of damage. |
-| `BodyEstimator.kt` | Pure Kotlin. Guesses whether the phone is on a person from accelerometer motion and the proximity sensor. |
+| `BodyEstimator.kt` | Pure Kotlin. Guesses whether the phone is on a person: accelerometer motion, or a covered proximity sensor plus body tremor (so couch cushions do not count as a pocket). |
 | `ConditionWatcher.kt` | Android glue for the rules: battery, audio devices, Wi-Fi, location, motion sensors and the schedule alarm. Registers only what the rules need, and the costly sources only while the screen is off. |
 | `LocationAccess.kt` | None / while-in-use / all-the-time location state. |
 | `Snooze.kt` | Pure Kotlin. The "Later" rule. |

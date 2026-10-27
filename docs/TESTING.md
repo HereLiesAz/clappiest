@@ -80,7 +80,8 @@ Expected results assume clap mode, sensitivity 0.5, 3 claps, unless stated.
 | T60 | Headphones | "Not while headphones are connected"; connect wired, then Bluetooth earbuds | Pauses on each; resumes when removed |
 | T61 | On me, walking | "Not while it seems to be on me"; arm; screen off; walk with the phone in a pocket | Notification becomes "Resting: on you" within about 10 s of walking; clapping does nothing |
 | T62 | On me, table | Put the phone face-up on a table, screen off | Within about 45 s of stillness it listens again; clapping triggers |
-| T63 | On me, still pocket | Sit still for 5 minutes with the phone in a trouser pocket | Record whether it stays "on you" (expected: yes, while the proximity sensor is covered) |
+| T63 | On me, still pocket | Sit still for 5 minutes with the phone in a trouser pocket | Record whether it stays "on you" (expected: yes, from the body's tremor); repeat sitting very still, and with the phone in a bag |
+| T71 | On me, couch cushions | Drop the phone between sofa cushions, screen off; nobody sits on the sofa | "Resting: on you" for about 90 s at most, then it listens; clap it. Repeat while sitting on the cushion and record what it does |
 | T64 | On me, battery | Rule on; 1 h with the screen off, phone on a table | Record battery drop against the same hour with the rule off |
 | T65 | Place | Save "Work" while there; set "Not at these places"; arm; screen off; stay, then leave 1 km | Paused at the place (within about 5 minutes of the screen going off); listens after leaving |
 | T66 | Location access | With location denied, add a place rule | The line says it can't be checked; the app keeps listening; "Allow location" shows the disclosure, then the system prompt; granting "while using" then shows the settings step |

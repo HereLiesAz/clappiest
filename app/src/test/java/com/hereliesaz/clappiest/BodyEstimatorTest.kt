@@ -39,12 +39,22 @@ class BodyEstimatorTest {
         assertEquals(false, e.onBody(t))       // put down
     }
 
-    @Test fun aCoveredPhoneThatRecentlyMovedStaysOnBody() {
+    @Test fun aPocketedPhoneWithABodysTremorStaysOnBody() {
         val e = BodyEstimator()
         var t = e.feed(0, 5, 3.0)
         e.onProximity(true)
-        t = e.feed(t, 120, 0.02)               // sitting, phone in pocket
+        t = e.feed(t, 300, 0.15)               // sitting, phone in pocket: small steady tremor
         assertEquals(true, e.onBody(t))
+    }
+
+    @Test fun aPhoneBetweenCouchCushionsIsNotOnBody() {
+        val e = BodyEstimator()
+        var t = e.feed(0, 5, 3.0)              // dropped
+        e.onProximity(true)                    // swallowed by the cushions
+        t = e.feed(t, 30, 0.02)
+        assertEquals(true, e.onBody(t))        // still inside the hold after the drop
+        t = e.feed(t, 120, 0.02)               // lies dead still
+        assertEquals(false, e.onBody(t))
     }
 
     @Test fun coveredButNeverMovedIsNotOnBody() {
@@ -58,7 +68,7 @@ class BodyEstimatorTest {
         val e = BodyEstimator()
         var t = e.feed(0, 5, 3.0)
         e.onProximity(true)
-        t = e.feed(t, 120, 0.02)
+        t = e.feed(t, 120, 0.15)
         e.onProximity(false)
         assertEquals(false, e.onBody(t))
     }
