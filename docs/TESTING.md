@@ -40,11 +40,11 @@ Expected results assume clap mode, sensitivity 0.5, 3 claps, unless stated.
 | T19 | Battery optimisation | Repeat T4 after 1 h idle, default vs Unrestricted | Record difference |
 | T20 | Call interruption | Arm → receive a call → end | Record whether listening recovers (KNOWN_ISSUES #8) |
 | T21 | Permission revoked while armed | Revoke microphone in Settings | Record behaviour (expected: service dies) |
-| T22 | Visualizer lifecycle | Open app disarmed → Home → check microphone indicator and `adb shell dumpsys media.audio_flinger` | Microphone should be released (KNOWN_ISSUES #5) |
+| T22 | Visualizer lifecycle | Open app disarmed → Home → check microphone indicator and `adb shell dumpsys media.audio_flinger`; then ARM; then deny and re-grant the microphone while the app is open | Microphone released when the app is not on screen and when armed; visualizer starts after permission is granted |
 | T23 | Upgrade | Install previous release → set options → install new | Settings preserved |
 | T24 | TalkBack | Navigate all controls | Every control has a spoken label (KNOWN_ISSUES #13) |
 | T25 | Sensitivity | Sweep 0 → 1 at T7 distances | Monotonic: higher hears more |
-| T26 | Custom sound (known failing) | Record a whistle → re-whistle | Expected to fail until KNOWN_ISSUES #1 is fixed; log scores |
+| T26 | Custom sound hidden | Open the app | No mode selector or custom-sound section; an older install's recording is deleted on launch (check `shared_prefs`) |
 | T28 | Clap to silence | Trigger the alarm (T4); during a quiet gap clap twice | Alarm stops and does not resume; notification gone; listening resumes while the screen is off |
 | T29 | Silence reliability | T28 ×20 at 0.5, 1, 2 m, sensitivity 0.5 | Record success rate and the number of gaps needed |
 | T30 | Not heard while sounding | Clap twice while the alarm is sounding | No effect (by design) |
@@ -82,6 +82,12 @@ Expected results assume clap mode, sensitivity 0.5, 3 claps, unless stated.
 | T62 | On me, table | Put the phone face-up on a table, screen off | Within about 45 s of stillness it listens again; clapping triggers |
 | T63 | On me, still pocket | Sit still for 5 minutes with the phone in a trouser pocket | Record whether it stays "on you" (expected: yes, from the body's tremor); repeat sitting very still, and with the phone in a bag |
 | T71 | On me, couch cushions | Drop the phone between sofa cushions, screen off; nobody sits on the sofa | "Resting: on you" for about 90 s at most, then it listens; clap it. Repeat while sitting on the cushion and record what it does |
+| T72 | Short screen | Largest font size, small phone, landscape | Everything reachable by scrolling; ARM stays pinned at the bottom |
+| T73 | Microphone rationale | First ARM with permissions not granted | Explanation dialog, then the system prompts; "Not now" leaves the app disarmed |
+| T74 | Rotation and the update popup | With a Play update available, rotate during launch and with the popup open | Popup appears once and survives rotation |
+| T75 | Launcher icon | Install, look at the launcher | New artwork (adaptive, themed monochrome where supported), not the old white glyph |
+| T76 | Backup | `adb shell bmgr backupnow com.hereliesaz.clappiest` | Reports the app does not participate in backup |
+| T77 | TalkBack | Main screen | Switches read label, role and state; slider reads "Sensitivity, N percent"; clap buttons read "Fewer claps" and "More claps"; the waveform reads as one item |
 | T64 | On me, battery | Rule on; 1 h with the screen off, phone on a table | Record battery drop against the same hour with the rule off |
 | T65 | Place | Save "Work" while there; set "Not at these places"; arm; screen off; stay, then leave 1 km | Paused at the place (within about 5 minutes of the screen going off); listens after leaving |
 | T66 | Location access | With location denied, add a place rule | The line says it can't be checked; the app keeps listening; "Allow location" shows the disclosure, then the system prompt; granting "while using" then shows the settings step |

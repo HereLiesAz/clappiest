@@ -39,9 +39,17 @@ class Prefs(context: Context) {
         get() = sp.getLong("snoozedUntil", 0L)
         set(v) = sp.edit { putLong("snoozedUntil", v) }
 
+    /** Always "claps" while [Features.CUSTOM_SOUND] is off. */
     var triggerMode: String
-        get() = sp.getString("triggerMode", "claps") ?: "claps"
+        get() = if (Features.CUSTOM_SOUND) sp.getString("triggerMode", "claps") ?: "claps" else "claps"
         set(v) = sp.edit { putString("triggerMode", v) }
+
+    /** Removes data from features that are switched off, so nothing recorded lingers on the phone. */
+    fun dropRetiredData() {
+        if (!Features.CUSTOM_SOUND && sp.contains("customSound")) {
+            sp.edit { remove("customSound"); remove("triggerMode") }
+        }
+    }
 
     var customSoundBytes: ByteArray?
         get() {
@@ -62,4 +70,12 @@ class Prefs(context: Context) {
     var alarmUri: Uri?
         get() = sp.getString("alarmUri", null)?.let(Uri::parse)
         set(v) = sp.edit { putString("alarmUri", v?.toString()) }
+}
+
+/**
+ * Features that exist in the code but are not offered. Custom-sound mode matches the raw waveform
+ * and cannot match a re-whistle (docs/KNOWN_ISSUES.md #1), so it is hidden until it is rebuilt.
+ */
+object Features {
+    const val CUSTOM_SOUND = false
 }

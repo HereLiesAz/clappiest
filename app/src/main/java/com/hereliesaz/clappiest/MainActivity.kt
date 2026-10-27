@@ -3,7 +3,6 @@ package com.hereliesaz.clappiest
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioFormat
@@ -30,6 +29,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -45,6 +47,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -57,38 +60,64 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.sqrt
 
 class MainActivity : ComponentActivity() {
     /** Bumped on resume so values edited in another screen (the rules) are re-read. */
     private val resumes = mutableIntStateOf(0)
 
-    override fun onResume() {
-        super.onResume()
-        resumes.intValue++
-    }
+    /** True between resume and pause: the live test listens only while the screen is in use. */
+    private val foreground = mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Prefs(this).dropRetiredData()
         setContent {
             MaterialTheme(colorScheme = ClappiestColorScheme) {
                 Surface(
                     color = MaterialTheme.colorScheme.background,
                     contentColor = MaterialTheme.colorScheme.onBackground
-                ) { Screen(Prefs(this), resumes.intValue) }
+                ) { Screen(Prefs(this), resumes.intValue, foreground.value) }
             }
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        resumes.intValue++
+        foreground.value = true
+    }
+
+    override fun onPause() {
+        foreground.value = false
+        super.onPause()
+    }
 }
 
+/**
+ * The update popup's state lives here, not in the screen, so rotating the phone while the check
+ * is in flight (or the popup is open) does not lose it: the check is throttled for 12 hours once
+ * it has answered.
+ */
+private object UpdatePrompt {
+    var pending by mutableStateOf<UpdateChecker.Update?>(null)
+}
+
+/** Secondary text is about 4.9:1 on black (AA needs 4.5:1). */
 internal val ClappiestColorScheme = darkColorScheme(
     primary = Color(0xFF498C71),
     onPrimary = Color.White,
-    secondary = Color(0xFFBB361C),
+    secondary = Color(0xFFD9472B),
     onSecondary = Color.White,
     background = Color.Black,
     onBackground = Color.White,
@@ -102,23 +131,26 @@ private val requiredPermissions = buildList {
 }.toTypedArray()
 
 @Composable
-private fun Screen(prefs: Prefs, resumes: Int) {
+private fun Screen(prefs: Prefs, resumes: Int, foreground: Boolean) {
     val ctx = LocalContext.current
-    var triggerMode by remember { mutableStateOf(prefs.triggerMode) }
     var claps by remember { mutableIntStateOf(prefs.clapCount) }
     var sensitivity by remember { mutableFloatStateOf(prefs.sensitivity) }
+    /** The saved value; the live test restarts on this, not on every slider step. */
+    var savedSensitivity by remember { mutableFloatStateOf(prefs.sensitivity) }
     var sound by remember { mutableStateOf(prefs.alarmUri) }
-    var isRecording by remember { mutableStateOf(false) }
-    var hasCustomSound by remember { mutableStateOf(prefs.customSoundBytes != null) }
     var clapToStop by remember { mutableStateOf(prefs.clapToStop) }
     var updateCheck by remember { mutableStateOf(prefs.updateCheck) }
-    var update by remember { mutableStateOf<UpdateChecker.Update?>(null) }
     var denied by remember { mutableStateOf(false) }
+    var explainMic by remember { mutableStateOf(false) }
     val armed = ListenerService.running
+    val micGranted = remember(resumes, denied) {
+        ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+    }
 
-    // Live test visualizer state
-    var visualizerAmplitudes by remember { mutableStateOf(FloatArray(30) { 0.1f }) }
-    var isRecognizedFlash by remember { mutableStateOf(false) }
+    // Live test display. Held as State and read only inside LiveVisualizer, so the 50 updates a
+    // second redraw the waveform and not the whole screen.
+    val amplitudes = remember { mutableStateOf(FloatArray(30) { 0.1f }) }
+    val recognized = remember { mutableStateOf(false) }
 
     fun refresh() { if (ListenerService.running) ListenerService.start(ctx) }
 
@@ -126,96 +158,23 @@ private fun Screen(prefs: Prefs, resumes: Int) {
     LaunchedEffect(Unit) {
         Thread({
             val found = UpdateChecker(ctx, prefs).check()
-            if (found != null) Handler(Looper.getMainLooper()).post { update = found }
+            if (found != null) Handler(Looper.getMainLooper()).post { UpdatePrompt.pending = found }
         }, "update-check").start()
     }
 
-    // Live test listener when screen / activity is active
-    DisposableEffect(triggerMode, prefs.sensitivity, prefs.clapCount, prefs.customSoundBytes) {
-        var testThread: Thread? = null
-        val hasPermission = ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        if (hasPermission && !armed) {
-            testThread = Thread({
-                val sampleRate = 16000
-                val minBuf = AudioRecord.getMinBufferSize(
-                    sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
-                )
-                val rec = runCatching {
-                    AudioRecord(
-                        MediaRecorder.AudioSource.VOICE_RECOGNITION,
-                        sampleRate,
-                        AudioFormat.CHANNEL_IN_MONO,
-                        AudioFormat.ENCODING_PCM_16BIT,
-                        maxOf(minBuf, sampleRate * 5)
-                    )
-                }.getOrNull()
-
-                if (rec != null && rec.state == AudioRecord.STATE_INITIALIZED) {
-                    val detector: Any = if (prefs.triggerMode == "custom") {
-                        val bytes = prefs.customSoundBytes
-                        val shorts = if (bytes != null) {
-                            ShortArray(bytes.size / 2) { i ->
-                                ((bytes[i * 2].toInt() and 0xFF) or (bytes[i * 2 + 1].toInt() shl 8)).toShort()
-                            }
-                        } else ShortArray(0)
-                        CustomSoundDetector(shorts, prefs.sensitivity)
-                    } else {
-                        ClapDetector(sampleRate, prefs.clapCount, prefs.sensitivity)
-                    }
-
-                    val buf = ShortArray(sampleRate / 50) // 20ms frames
-                    try {
-                        rec.startRecording()
-                        val me = Thread.currentThread()
-                        val amps = FloatArray(30) { 0.1f }
-                        var ampIndex = 0
-
-                        while (testThread === me) {
-                            val n = rec.read(buf, 0, buf.size)
-                            if (n <= 0) break
-
-                            // Compute RMS for visualizer
-                            var sumSq = 0.0
-                            for (i in 0 until n) {
-                                val v = buf[i].toDouble()
-                                sumSq += v * v
-                            }
-                            val rms = sqrt(sumSq / n).toFloat()
-                            val normalized = (rms / 10000f).coerceIn(0.05f, 1f)
-
-                            amps[ampIndex] = normalized
-                            ampIndex = (ampIndex + 1) % amps.size
-
-                            val matched = when (detector) {
-                                is ClapDetector -> detector.process(buf, n)
-                                is CustomSoundDetector -> detector.process(buf, n)
-                                else -> false
-                            }
-
-                            Handler(Looper.getMainLooper()).post {
-                                visualizerAmplitudes = amps.clone()
-                                if (matched) {
-                                    isRecognizedFlash = true
-                                    Handler(Looper.getMainLooper()).postDelayed({
-                                        isRecognizedFlash = false
-                                    }, 1200)
-                                }
-                            }
-                        }
-                    } catch (_: Exception) {
-                    } finally {
-                        runCatching { rec.stop() }
-                        rec.release()
-                    }
-                }
+    // The live test listens only while the app is on screen, unarmed, with the microphone allowed,
+    // and restarts only when what it listens for changes.
+    DisposableEffect(foreground, armed, micGranted, claps, savedSensitivity) {
+        val stop = AtomicBoolean(false)
+        var thread: Thread? = null
+        if (foreground && micGranted && !armed) {
+            thread = Thread({
+                runLiveTest(claps, savedSensitivity, stop, amplitudes, recognized)
             }, "live-test-listener").apply { start() }
         }
         onDispose {
-            testThread?.let {
-                val t = it
-                testThread = null
-                t.interrupt()
-            }
+            stop.set(true)
+            thread?.interrupt()
         }
     }
 
@@ -224,20 +183,6 @@ private fun Screen(prefs: Prefs, resumes: Int) {
     ) { result ->
         denied = result[Manifest.permission.RECORD_AUDIO] != true
         if (!denied) ListenerService.start(ctx)
-    }
-
-    val recordPermissions = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            isRecording = true
-            recordCustomSound(ctx) {
-                isRecording = false
-                hasCustomSound = true
-                triggerMode = prefs.triggerMode
-                refresh()
-            }
-        }
     }
 
     val ringtonePicker = rememberLauncherForActivityResult(
@@ -265,197 +210,244 @@ private fun Screen(prefs: Prefs, resumes: Int) {
             ?: uri?.lastPathSegment ?: "Default alarm"
     }
 
-    update?.let { UpdateDialog(it) { update = null } }
+    UpdatePrompt.pending?.let { UpdateDialog(it) { UpdatePrompt.pending = null } }
 
-    Column(
-        Modifier.fillMaxSize().background(Color.Black).safeDrawingPadding().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-    ) {
-        Text("The Clappiest", fontSize = 36.sp, fontWeight = FontWeight.Black)
-        Text(
-            if (armed) "Armed (Listening in background)..." else "Test your claps or whistle with the live visualizer below:",
-            color = MaterialTheme.colorScheme.secondary,
-            fontSize = 14.sp
+    if (explainMic) {
+        AlertDialog(
+            onDismissRequest = { explainMic = false },
+            containerColor = Color(0xFF111111),
+            title = { Text("Why the microphone?") },
+            text = {
+                Text(
+                    "The Clappiest listens for your clap code while the screen is off, so it can sound an alarm " +
+                        "and help you find your phone. Sound is analysed on the phone as it arrives and thrown " +
+                        "away. Nothing is recorded, saved or sent anywhere. Notifications are for the " +
+                        "\"listening\" notice and the Stop button."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { explainMic = false; permissions.launch(requiredPermissions) }) { Text("Continue") }
+            },
+            dismissButton = { TextButton(onClick = { explainMic = false }) { Text("Not now") } },
         )
+    }
 
-        // Live Waveform Visualizer
-        Column(Modifier.fillMaxWidth().height(100.dp).background(Color(0xFF111111), shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).padding(12.dp)) {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("LIVE VISUALIZER", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                if (isRecognizedFlash) {
-                    Text("RECOGNIZED! 🎯", color = Color.Green, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-            WaveformView(
-                amplitudes = visualizerAmplitudes,
-                isRecognized = isRecognizedFlash,
-                modifier = Modifier.fillMaxWidth().weight(1f)
+    Column(Modifier.fillMaxSize().background(Color.Black).safeDrawingPadding()) {
+        // Everything scrolls except the ARM button, so it is always reachable on a short phone or
+        // at a large font size.
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(start = 24.dp, end = 24.dp, top = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            Text("The Clappiest", fontSize = 36.sp, fontWeight = FontWeight.Black)
+            Text(
+                if (armed) "Armed (listening in the background)..." else "Test your claps with the live visualizer below:",
+                color = MaterialTheme.colorScheme.secondary,
+                fontSize = 14.sp
             )
-        }
 
-        // Trigger Mode selector
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(
-                onClick = { triggerMode = "claps"; prefs.triggerMode = "claps"; refresh() },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (triggerMode == "claps") MaterialTheme.colorScheme.primary else Color.DarkGray,
-                    contentColor = Color.White
-                )
-            ) {
-                Text("Claps")
-            }
-            Button(
-                onClick = { triggerMode = "custom"; prefs.triggerMode = "custom"; refresh() },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (triggerMode == "custom") MaterialTheme.colorScheme.primary else Color.DarkGray,
-                    contentColor = Color.White
-                )
-            ) {
-                Text("Custom Sound / Whistle")
-            }
-        }
+            LiveVisualizer(amplitudes, recognized)
 
-        if (triggerMode == "claps") {
             Section("Claps") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedButton(onClick = {
-                        claps = (claps - 1).coerceAtLeast(MIN_CLAPS); prefs.clapCount = claps; refresh()
-                    }) { Text("−") }
+                    OutlinedButton(
+                        onClick = { claps = (claps - 1).coerceAtLeast(MIN_CLAPS); prefs.clapCount = claps; refresh() },
+                        modifier = Modifier.semantics { contentDescription = "Fewer claps" },
+                    ) { Text("−") }
                     Text(
                         "$claps", fontSize = 40.sp, fontWeight = FontWeight.Black,
-                        modifier = Modifier.padding(horizontal = 24.dp),
+                        modifier = Modifier.padding(horizontal = 24.dp).semantics { contentDescription = "$claps claps" },
                     )
-                    OutlinedButton(onClick = {
-                        claps = (claps + 1).coerceAtMost(MAX_CLAPS); prefs.clapCount = claps; refresh()
-                    }) { Text("+") }
+                    OutlinedButton(
+                        onClick = { claps = (claps + 1).coerceAtMost(MAX_CLAPS); prefs.clapCount = claps; refresh() },
+                        modifier = Modifier.semantics { contentDescription = "More claps" },
+                    ) { Text("+") }
                 }
             }
-        } else {
-            Section("Custom Sound / Whistle") {
-                Text(
-                    if (isRecording) "Listening... make your sound now!"
-                    else if (hasCustomSound) "Custom sound recorded ✓"
-                    else "No sound recorded yet.",
-                    color = if (hasCustomSound) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(6.dp))
-                OutlinedButton(
-                    onClick = {
-                        if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                            isRecording = true
-                            recordCustomSound(ctx) {
-                                isRecording = false
-                                hasCustomSound = true
-                                triggerMode = prefs.triggerMode
-                                refresh()
-                            }
-                        } else {
-                            recordPermissions.launch(Manifest.permission.RECORD_AUDIO)
-                        }
+
+            Section("Sensitivity") {
+                Slider(
+                    value = sensitivity,
+                    onValueChange = { sensitivity = it },
+                    onValueChangeFinished = { prefs.sensitivity = sensitivity; savedSensitivity = sensitivity; refresh() },
+                    modifier = Modifier.semantics {
+                        contentDescription = "Sensitivity"
+                        stateDescription = "${(sensitivity * 100).toInt()} percent"
                     },
-                    enabled = !isRecording
-                ) {
-                    Text(if (isRecording) "Recording..." else "Record Whistle / Sound")
+                    colors = SliderDefaults.colors(
+                        thumbColor = Color.White, activeTrackColor = Color.White,
+                        inactiveTrackColor = Color(0xFF333333),
+                    ),
+                )
+            }
+
+            Section("Sound") {
+                Text(soundName, fontSize = 16.sp)
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(onClick = {
+                        ringtonePicker.launch(
+                            Intent(RingtoneManager.ACTION_RINGTONE_PICKER)
+                                .putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALL)
+                                .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                                .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                                .putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, sound)
+                        )
+                    }) { Text("System") }
+                    OutlinedButton(onClick = { filePicker.launch(arrayOf("audio/*")) }) { Text("File") }
                 }
             }
-        }
 
-        Section("Sensitivity") {
-            Slider(
-                value = sensitivity,
-                onValueChange = { sensitivity = it },
-                onValueChangeFinished = { prefs.sensitivity = sensitivity; refresh() },
-                colors = SliderDefaults.colors(
-                    thumbColor = Color.White, activeTrackColor = Color.White,
-                    inactiveTrackColor = Color(0xFF333333),
-                ),
-            )
-        }
-
-        Section("Sound") {
-            Text(soundName, fontSize = 16.sp)
-            Spacer(Modifier.height(6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = {
-                    ringtonePicker.launch(
-                        Intent(RingtoneManager.ACTION_RINGTONE_PICKER)
-                            .putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALL)
-                            .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
-                            .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
-                            .putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, sound)
+            Section("Silence") {
+                SwitchRow("Clap twice to silence the alarm", clapToStop) { clapToStop = it; prefs.clapToStop = it }
+                if (clapToStop) {
+                    Text(
+                        "The alarm pauses briefly to listen.",
+                        color = MaterialTheme.colorScheme.secondary,
+                        fontSize = 12.sp,
                     )
-                }) { Text("System") }
-                OutlinedButton(onClick = { filePicker.launch(arrayOf("audio/*")) }) { Text("File") }
+                }
             }
-        }
 
-        Section("Silence") {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Clap twice to silence the alarm", fontSize = 16.sp, modifier = Modifier.weight(1f))
-                Switch(checked = clapToStop, onCheckedChange = { clapToStop = it; prefs.clapToStop = it })
+            Section("When to listen") {
+                val summary = remember(resumes) { RulesActivity.summary(prefs.rules) }
+                Text(summary, fontSize = 16.sp)
+                Spacer(Modifier.height(6.dp))
+                OutlinedButton(onClick = { RulesActivity.open(ctx) }) { Text("Choose when") }
             }
-            if (clapToStop) {
+
+            Section("Updates") {
+                SwitchRow("Check for updates", updateCheck) { updateCheck = it; prefs.updateCheck = it }
                 Text(
-                    "The alarm pauses briefly to listen.",
+                    "Asks Google Play whether a newer version exists when you open the app. " +
+                        "Works for copies installed from Google Play.",
                     color = MaterialTheme.colorScheme.secondary,
                     fontSize = 12.sp,
                 )
             }
+
+            Spacer(Modifier.height(8.dp))
         }
 
-        Section("When to listen") {
-            val summary = remember(resumes) { RulesActivity.summary(prefs.rules) }
-            Text(summary, fontSize = 16.sp)
-            Spacer(Modifier.height(6.dp))
-            OutlinedButton(onClick = { RulesActivity.open(ctx) }) { Text("Choose when") }
-        }
-
-        Section("Updates") {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Check for updates", fontSize = 16.sp, modifier = Modifier.weight(1f))
-                Switch(checked = updateCheck, onCheckedChange = { updateCheck = it; prefs.updateCheck = it })
+        Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (denied) Text("No microphone, no miracle.", color = MaterialTheme.colorScheme.secondary)
+            Button(
+                onClick = {
+                    when {
+                        armed -> ListenerService.stop(ctx)
+                        requiredPermissions.all {
+                            ContextCompat.checkSelfPermission(ctx, it) == PackageManager.PERMISSION_GRANTED
+                        } -> ListenerService.start(ctx)
+                        else -> explainMic = true
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (armed) Color.Black else Color.White,
+                    contentColor = if (armed) Color.White else Color.Black,
+                ),
+                border = if (armed) ButtonDefaults.outlinedButtonBorder(enabled = true) else null,
+            ) {
+                Text(if (armed) "DISARM" else "ARM", fontWeight = FontWeight.Black, fontSize = 18.sp)
             }
             Text(
-                "Asks Google Play whether a newer version exists when you open the app. " +
-                    "Works for copies installed from Google Play.",
+                if (armed) "Listening whenever the screen is off." else "Deaf.",
                 color = MaterialTheme.colorScheme.secondary,
-                fontSize = 12.sp,
             )
         }
+    }
+}
 
-        Spacer(Modifier.weight(1f))
+/** A labelled switch that TalkBack reads as one control: label, role and state together. */
+@Composable
+private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().toggleable(value = checked, role = Role.Switch, onValueChange = onChange),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, fontSize = 16.sp, modifier = Modifier.weight(1f))
+        Switch(checked = checked, onCheckedChange = null)
+    }
+}
 
-        if (denied) Text("No microphone, no miracle.", color = MaterialTheme.colorScheme.secondary)
-        Button(
-            onClick = {
-                when {
-                    armed -> ListenerService.stop(ctx)
-                    requiredPermissions.all {
-                        ContextCompat.checkSelfPermission(ctx, it) == PackageManager.PERMISSION_GRANTED
-                    } -> ListenerService.start(ctx)
-                    else -> permissions.launch(requiredPermissions)
-                }
-            },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (armed) Color.Black else Color.White,
-                contentColor = if (armed) Color.White else Color.Black,
-            ),
-            border = if (armed) ButtonDefaults.outlinedButtonBorder(enabled = true) else null,
+@Composable
+private fun LiveVisualizer(amplitudes: State<FloatArray>, recognized: State<Boolean>) {
+    Column(
+        Modifier.fillMaxWidth().height(100.dp)
+            .background(Color(0xFF111111), shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+            .padding(12.dp)
+            .clearAndSetSemantics { contentDescription = if (recognized.value) "Live test: clap code recognised" else "Live test waveform" },
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(if (armed) "DISARM" else "ARM", fontWeight = FontWeight.Black, fontSize = 18.sp)
+            Text("LIVE VISUALIZER", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            if (recognized.value) {
+                Text("RECOGNIZED! 🎯", color = Color.Green, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
         }
-        Text(
-            if (armed) "Listening whenever the screen is off." else "Deaf.",
-            color = MaterialTheme.colorScheme.secondary,
+        Spacer(Modifier.height(8.dp))
+        WaveformView(
+            amplitudes = amplitudes.value,
+            isRecognized = recognized.value,
+            modifier = Modifier.fillMaxWidth().weight(1f)
         )
+    }
+}
+
+/**
+ * The live test: listens while the app is on screen and unarmed, drawing the level and flashing
+ * when the clap code is heard. Stops when [stop] is set. Audio is measured and dropped.
+ */
+@SuppressLint("MissingPermission") // Checked by the caller.
+private fun runLiveTest(
+    claps: Int, sensitivity: Float, stop: AtomicBoolean,
+    amplitudes: androidx.compose.runtime.MutableState<FloatArray>,
+    recognized: androidx.compose.runtime.MutableState<Boolean>,
+) {
+    val main = Handler(Looper.getMainLooper())
+    val sampleRate = 16000
+    val minBuf = AudioRecord.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+    val rec = runCatching {
+        AudioRecord(
+            MediaRecorder.AudioSource.VOICE_RECOGNITION, sampleRate,
+            AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(minBuf, sampleRate * 5),
+        )
+    }.getOrNull() ?: return
+    if (rec.state != AudioRecord.STATE_INITIALIZED) { rec.release(); return }
+
+    val detector = ClapDetector(sampleRate, claps, sensitivity)
+    val buf = ShortArray(sampleRate / 50) // 20 ms
+    val amps = FloatArray(30) { 0.1f }
+    var ampIndex = 0
+    val clearFlash = Runnable { recognized.value = false }
+    try {
+        rec.startRecording()
+        while (!stop.get()) {
+            val n = rec.read(buf, 0, buf.size)
+            if (n <= 0) break
+            var sumSq = 0.0
+            for (i in 0 until n) { val v = buf[i].toDouble(); sumSq += v * v }
+            amps[ampIndex] = (sqrt(sumSq / n).toFloat() / 10000f).coerceIn(0.05f, 1f)
+            ampIndex = (ampIndex + 1) % amps.size
+            val matched = detector.process(buf, n)
+            val snapshot = amps.clone()
+            main.post {
+                amplitudes.value = snapshot
+                if (matched) {
+                    recognized.value = true
+                    main.removeCallbacks(clearFlash)
+                    main.postDelayed(clearFlash, 1200)
+                }
+            }
+        }
+    } catch (_: Exception) {
+    } finally {
+        runCatching { rec.stop() }
+        rec.release()
+        main.post { recognized.value = false }
     }
 }
 
@@ -508,58 +500,6 @@ private fun WaveformView(
             )
         }
     }
-}
-
-@SuppressLint("MissingPermission")
-private fun recordCustomSound(context: Context, onRecorded: () -> Unit) {
-    Thread({
-        val sampleRate = 16000
-        val durationMs = 1500
-        val bufferSize = AudioRecord.getMinBufferSize(
-            sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
-        )
-        val audioRecord = AudioRecord(
-            MediaRecorder.AudioSource.MIC,
-            sampleRate,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT,
-            maxOf(bufferSize, sampleRate * 2)
-        )
-        if (audioRecord.state != AudioRecord.STATE_INITIALIZED) {
-            audioRecord.release()
-            return@Thread
-        }
-
-        val totalSamples = (sampleRate * durationMs) / 1000
-        val shortBuffer = ShortArray(totalSamples)
-        var readCount = 0
-
-        try {
-            audioRecord.startRecording()
-            while (readCount < totalSamples) {
-                val n = audioRecord.read(shortBuffer, readCount, totalSamples - readCount)
-                if (n <= 0) break
-                readCount += n
-            }
-        } catch (_: Exception) {
-        } finally {
-            runCatching { audioRecord.stop() }
-            audioRecord.release()
-        }
-
-        if (readCount > 0) {
-            val byteBuffer = ByteArray(readCount * 2)
-            for (i in 0 until readCount) {
-                val s = shortBuffer[i]
-                byteBuffer[i * 2] = (s.toInt() and 0xFF).toByte()
-                byteBuffer[i * 2 + 1] = ((s.toInt() shr 8) and 0xFF).toByte()
-            }
-            val prefs = Prefs(context)
-            prefs.customSoundBytes = byteBuffer
-            prefs.triggerMode = "custom"
-            Handler(Looper.getMainLooper()).post { onRecorded() }
-        }
-    }, "sound-recorder").start()
 }
 
 @Composable
