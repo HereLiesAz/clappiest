@@ -30,13 +30,12 @@ Stored only in the app's private storage:
 | Clap count, sensitivity, trigger mode | Remember your settings |
 | Alarm sound choice (a reference to a system sound or a file you picked) | Play your chosen sound |
 | "When to listen" rules you set: hours and days, charging, battery and headphones choices, and, if you add them, the **names and coordinates of places you saved** and the **names of Wi-Fi networks you saved** | Decide when to listen |
-| **Custom sound recording** (about 1.5 seconds of audio), only if you record one in Custom Sound mode | Compare live sound against it |
 
-The custom recording is the only audio the app ever saves. It stays on your phone and is used only for matching. Chosen alarm files are referenced, not copied.
+The app saves no audio. (An earlier version could save a 1.5-second custom sound recording; this version deletes any such recording when it is opened.) Chosen alarm files are referenced, not copied.
 
 ## Backups
 
-Android's Auto Backup may copy the app's stored data, including a custom sound recording if you made one and the places and Wi-Fi names you saved, to your Google Account, according to your device's backup settings. That backup is handled by Google under Google's terms. The developer cannot access it. To avoid it, turn off backup in Android settings or do not record a custom sound.
+The app opts out of Android's Auto Backup, so its settings, including any places and Wi-Fi names you saved, are not copied to your Google Account or to a new phone. (Earlier versions did not opt out, so a backup made by an older version may exist in your Google Account; delete it under Google One / Backup settings.)
 
 ## Update check
 
@@ -80,7 +79,7 @@ The app is distributed through Google Play. Google processes install and device 
 
 ## Retention and deletion
 
-- Settings and the custom recording remain until you clear the app's storage or uninstall it.
+- Settings remain until you clear the app's storage or uninstall it.
 - To remove them: Android Settings → Apps → The Clappiest → Storage → **Clear storage**, or uninstall.
 - Because the developer holds no data about you, there is nothing to request, correct or delete from the developer.
 

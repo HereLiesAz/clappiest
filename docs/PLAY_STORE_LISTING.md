@@ -194,8 +194,7 @@ Personal developer accounts created after November 2023 must run a closed test w
 
 ## Pre-launch hygiene
 
-- Replace the launcher icon (KNOWN_ISSUES #6) so the installed icon matches the listing.
-- Fix or hide custom-sound mode (KNOWN_ISSUES #1) before production.
+- Launcher icon and custom-sound mode: done (adaptive icon is referenced; custom mode hidden). Confirm the installed icon on a device.
 - Verify clap mode on at least two physical devices from different manufacturers ([TESTING.md](TESTING.md)).
 - Close stale central-run issues on GitHub (#3, #5) once Play releases are passing.
 - Confirm `beta` and `production` tracks accept a release after the listing is complete; then decide whether open testing or a staged production rollout is wanted. The central profile publishes `beta` as completed and `production` as a draft with existing releases preserved.

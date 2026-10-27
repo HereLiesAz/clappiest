@@ -103,4 +103,4 @@ Audio is analysed in memory and discarded. The app has no internet permission. T
 
 ## Custom sound mode
 
-Experimental and unreliable in the current build. Use **Claps** until KNOWN_ISSUES #1 is fixed.
+Removed for now: it could not reliably match a whistle. If an older version saved a recording, this version deletes it when you open the app.

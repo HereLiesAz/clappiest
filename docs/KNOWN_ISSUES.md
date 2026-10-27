@@ -50,7 +50,7 @@ Decisive test: with the app force-stopped (or uninstalled), does it still happen
 
 The background floor ignored frames louder than 3× itself, and an onset needs quiet before it (RMS under 2× the floor). After a quiet start the floor sits at its minimum of 50, so steady noise of RMS 180 or more (about −45 dBFS: a fan, a television, traffic) kept `quiet` false forever while the notification still read "Listening". Reproduced on the real `ClapDetector`: ambient RMS 170 worked, 180 and above never fired again, after 10 s or 120 s alike. Now the floor follows louder frames at 0.005 per frame (about 2 s), so it catches up with ambient noise (tests in `ClapDetectorTest`). A rejected loud sound (speech, a long hum) raises the floor briefly. Against ESC-50 the false-match count for a 3-clap code with the shape check went from 28 to 26 of 920 clips; for 2 claps from 56 to 59, for 4 from 14 to 22. T53.
 
-### 1. Custom-sound detector cannot match a re-whistle (S1)
+### 1. Custom-sound detector cannot match a re-whistle (S1) — hidden
 
 `CustomSoundDetector` correlates the raw waveform. A whistle is a near-pure tone, so correlation depends on phase and on pitch to a fraction of a percent. A human cannot repeat either.
 
@@ -64,7 +64,7 @@ Simulation: 1.5 s template (2.6 kHz whistle with 1% vibrato in light room noise)
 
 **Fix.** Match spectrogram shape (log band energies, z-scored, correlated over the template length). Same simulation: 97–100% detection at ≤ 2% pitch variation; 0% false positives on 60 loud-noise trials and on whistles at 1.5, 1.8, 2.0, 3.2 and 3.5 kHz; 0.09 against a speech-like harmonic signal. Design in [DETECTION.md](DETECTION.md). Add JVM tests with synthetic re-whistles.
 
-Until fixed: hide the mode, or label it Experimental, and keep it out of the Play listing.
+**Now:** the mode is hidden (`Features.CUSTOM_SOUND = false`): no selector, no recorder, the trigger mode is forced to claps and a recording saved by an older version is deleted on launch. Issues 2 to 5 describe the hidden code and come back with it.
 
 ### 2. Sensitivity is inverted in custom mode (S1)
 
@@ -78,27 +78,25 @@ Until fixed: hide the mode, or label it Experimental, and keep it out of the Pla
 
 With no recording, `ListenerService` builds a `CustomSoundDetector` over an empty array; `process()` returns `false` forever. The app shows "Listening" while it cannot trigger. Also: the template is a fixed 1.5 s with no onset trimming, no check that any sound occurred, no preview and no delete control. Block ARM in custom mode until a valid template exists; trim to the onset; add Delete.
 
-### 5. The live visualizer outlives the screen (S2)
+### 5. The live visualizer outlived the screen (S2) — fixed
 
-`MainActivity.kt:111` uses `DisposableEffect`, so the microphone thread runs until the activity is destroyed, not until it is stopped. Consequences: the microphone stays open while the app is in the background; it keeps running after you arm, so two `AudioRecord`s coexist; it never starts after permission is granted in-session because the effect keys exclude permission state. Worse, once a custom sound exists the effect's key `prefs.customSoundBytes` returns a freshly decoded `ByteArray` on every composition, and arrays compare by reference. Every visualizer update recomposes `Screen`, the key "changes", and the effect disposes and restarts: a new `AudioRecord` and thread per frame, plus a 64 KB Base64 decode on the main thread each time. Key on a stable value (a hash, or `hasCustomSound`). By code reading; confirm with T22.
+It used to run until the activity was destroyed, restart on every frame once a custom sound existed, and never start after permission was granted in-session. It now runs only while the app is resumed, unarmed and the microphone is allowed; it restarts only when the clap count or saved sensitivity changes; and only the waveform redraws, not the whole screen. T22.
 
-Fix: tie it to `Lifecycle.Event.ON_START`/`ON_STOP`, key it on `armed` and permission, and stop it when arming. Also, `testThread` is assigned after `start()`, a small race.
+### 6. The installed launcher icon was not the new artwork (S2) — fixed
 
-### 6. The installed launcher icon is not the new artwork (S2)
+The manifest now references `@mipmap/ic_launcher` and `ic_launcher_round`, so R8's resource shrinker keeps the adaptive icon (the built APK's icon is an adaptive XML, not the old vector). Confirm on a device (T75).
 
-`AndroidManifest.xml:12` still uses `@drawable/ic_clap`. The adaptive-icon mipmaps are present but unreferenced, so R8's resource shrinker removed them: the shipped APK's icon is `res/fL.xml` (the old vector) and contains no `mipmap` entries. Set `android:icon="@mipmap/ic_launcher"` and `android:roundIcon="@mipmap/ic_launcher_round"`. The 512 px Play icon is separate and correct.
+### 7. Auto Backup included the custom recording (S2) — fixed
 
-### 7. Auto Backup includes the custom recording (S2)
-
-`AndroidManifest.xml:11`: `allowBackup="true"` with no extraction rules, so `shared_prefs/clappiest.xml`, holding the Base64 recording, can be backed up to the user's Google Account. [PRIVACY_POLICY.md](PRIVACY_POLICY.md) discloses this. Preferable: `allowBackup="false"`, or `dataExtractionRules`/`fullBackupContent` excluding the preferences file; then delete the "Backups" section from the policy.
+`allowBackup` is now `false`, so settings, saved places and Wi-Fi names are not backed up. A backup made by an earlier version may still exist in the user's Google Account. T76.
 
 ### 8. Silent failure when the microphone is unavailable or lost (S2) — fixed
 
 A microphone that could not be opened, could not start, or died mid-run left the wake lock held and the notification reading "Listening in the dark"; `startRecording()` throwing took the whole app down. Now the listener thread reports back to the service, which releases the wake lock, shows "Can't reach the microphone. Trying again." and retries every 10 s while the screen is off. A match posted after listening was stopped or restarted is dropped. Not covered: a revoked permission still retries rather than stopping the service. T20, T53.
 
-### 9. No permission rationale (S3)
+### 9. No permission rationale (S3) — fixed
 
-The microphone prompt appears with no explanation. Add a one-screen rationale first: it listens only while armed and the screen is off, nothing is stored or sent. Improves trust and review outcomes.
+A dialog explains the microphone and notification requests before the system prompts (T73).
 
 ### 10. Unused `ndkVersion` (S3)
 
@@ -112,9 +110,9 @@ The central release workflows build but do not test, and the repository has no C
 
 `AlarmPlayer` forces the alarm stream to maximum regardless of output route. Check the active output (`AudioManager.getDevices`) and cap or route to the speaker when headphones are connected.
 
-### 13. Controls lack accessibility semantics (S4)
+### 13. Controls lacked accessibility semantics (S4) — fixed, rules screen included
 
-The sensitivity `Slider`, the waveform and the clap-count readout carry no labels or state descriptions for TalkBack.
+Switches are single toggleable rows (label, role, state); the slider, clap buttons and waveform have descriptions; secondary text contrast is 4.9:1 on black (was 3.66:1). Untested with TalkBack (T77, T70).
 
 ### 14. Stale central-run issues (S4)
 

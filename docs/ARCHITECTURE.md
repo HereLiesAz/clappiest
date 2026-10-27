@@ -6,12 +6,12 @@ Single-module Android app (`:app`), Kotlin, Jetpack Compose. `minSdk 26`, `targe
 
 | File | Role |
 |---|---|
-| `MainActivity.kt` | Compose UI: mode, clap count, sensitivity, alarm sound, ARM switch, live visualizer. Records the custom-sound template. |
+| `MainActivity.kt` | Compose UI: clap count, sensitivity, alarm sound, silence and update switches, rules entry, live visualizer, ARM button (pinned; the rest scrolls). The live test listens only while the app is on screen, unarmed and the microphone is allowed. |
 | `ListenerService.kt` | Foreground service (`microphone` type). Owns the microphone while armed. Screen-state receiver. Starts and stops the alarm, and runs the echo-cancelled, gap-and-window listening that lets two claps silence it. |
 | `EchoGuard.kt` | Pure Kotlin. Decides whether echo cancellation hides the alarm from the microphone. |
 | `ClapDetector.kt` | Pure Kotlin. Counts impulse claps in a PCM stream. |
 | `ClapShape.kt` | Pure Kotlin. Decides whether a transient *sounds* like a clap (spectral centroid, low-band share, flatness; its own FFT). Used by `ClapDetector`. |
-| `CustomSoundDetector.kt` | Pure Kotlin. Matches a recorded template against the stream. |
+| `CustomSoundDetector.kt` | Pure Kotlin. Matches a recorded template against the stream. **Not offered**: `Features.CUSTOM_SOUND` is false (KNOWN_ISSUES #1). |
 | `AlarmPlayer.kt` | Loops the chosen sound on the alarm stream at maximum volume; restores volume on stop. |
 | `UpdateChecker.kt` | Asks Google Play (through the Play Store app) whether a newer version exists; opens the Play listing. |
 | `RulesActivity.kt` | Compose screen "When to listen". Edits the rules, requests location only when a place or Wi-Fi rule is used (disclosure first). |
@@ -21,7 +21,7 @@ Single-module Android app (`:app`), Kotlin, Jetpack Compose. `minSdk 26`, `targe
 | `ConditionWatcher.kt` | Android glue for the rules: battery, audio devices, Wi-Fi, location, motion sensors and the schedule alarm. Registers only what the rules need, and the costly sources only while the screen is off. |
 | `LocationAccess.kt` | None / while-in-use / all-the-time location state. |
 | `Snooze.kt` | Pure Kotlin. The "Later" rule. |
-| `Prefs.kt` | `SharedPreferences` wrapper: clap count, sensitivity, trigger mode, custom sound bytes, alarm URI. |
+| `Prefs.kt` | `SharedPreferences` wrapper: clap count, sensitivity, trigger mode (forced to `claps`), alarm URI, rules; `Features` switches off unfinished features and `dropRetiredData()` deletes any custom recording left by an older version. |
 
 ## State machine
 
@@ -99,7 +99,7 @@ alarm start ──4.0 s── window (mute) ──3.0 s── unmute ── verd
 
 ## Audio source
 
-`VOICE_RECOGNITION`, falling back to `MIC`. `MIC` applies noise suppression and automatic gain on most phones, which flattens clap transients. The custom-sound recorder currently uses `MIC`; see KNOWN_ISSUES #3.
+`VOICE_RECOGNITION`, falling back to `MIC`. `MIC` applies noise suppression and automatic gain on most phones, which flattens clap transients.
 
 ## Alarm
 
@@ -117,8 +117,8 @@ alarm start ──4.0 s── window (mute) ──3.0 s── unmute ── verd
 | `updateCheck` | boolean | Check for updates (default on) |
 | `lastUpdateCheck` | long | Time of the last completed check |
 | `snoozedKey`, `snoozedUntil` | string, long | "Later": the version code and when it stops being hidden (3 days) |
-| `triggerMode` | string | `claps` or `custom` |
-| `customSound` | string | Base64 of 1.5 s PCM16 mono audio (~64 KB) |
+| `triggerMode` | string | `claps`. (`custom` is not offered; a stored value is ignored) |
+| `customSound` | string | Retired. Deleted on launch if an older version left one |
 | `alarmUri` | string | URI of the chosen alarm sound |
 | `rules` | string | The "When to listen" rules as `key=value` lines, including any saved place names and coordinates and Wi-Fi network names |
 
