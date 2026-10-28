@@ -30,19 +30,6 @@ Clap mode has never run on a physical device. Everything below that concerns it 
 - **The hours rule is inexact**: `setAndAllowWhileIdle` may fire minutes late in Doze.
 - **Unknown means listen.** Every rule fails open, because a missed lost-phone is worse than listening where the user did not want it.
 - **Background location is a Play review risk** ([PERMISSIONS.md](PERMISSIONS.md)).
-- **Saved places are in Auto Backup** until `allowBackup` is turned off (issue 7).
-
-## Reported, unconfirmed
-
-### R1. Lock screen skipped when the screen turns on (user report, 2026-10-24)
-
-Reported while the app was installed. **Not reproduced; cause unknown.**
-
-Checked and clean: no `Keyguard*`, `showWhenLocked`, `turnScreenOn`, `FLAG_DISMISS_KEYGUARD`, full-screen intent, device-admin, accessibility or trust-agent code in the source; none of those in the shipped 0.1.8 manifest; the app requests no permission that can alter lock behaviour. The only screen-state work is a `SCREEN_ON`/`SCREEN_OFF`/`USER_PRESENT` receiver that starts and stops listening.
-
-Plausible interactions, none proven: an OEM setting such as face unlock going straight to the home screen; Smart Lock or a trusted device; a voice or sensor unlock feature affected by an app holding the microphone while the screen is off; the **Stop** action on the alarm notification, which silences the alarm without unlocking (by design, and does not unlock the phone).
-
-Decisive test: with the app force-stopped (or uninstalled), does it still happen? Record model, Android/OEM version, lock method, and whether it needs the app armed, an alarm to have played, or neither. See [TESTING.md](TESTING.md) T27.
 
 ## Issues
 
