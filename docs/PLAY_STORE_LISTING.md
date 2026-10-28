@@ -152,7 +152,21 @@ Google defines "collect" as transmitting data off the device. The app transmits 
 | Do you provide a way to request data deletion? | Not applicable |
 | Data types | None selected |
 
+The optional place and Wi-Fi rules use location, but only on the phone: the position is compared with saved places in memory and is never stored, logged or transmitted, so by Google's definition (leaving the device) it is not collected. Keep **No** unless that changes, and make sure the privacy policy matches (it does: "When to listen rules").
+
 Re-check this section whenever a dependency, permission or network feature is added.
+
+## Location permissions declaration (background location)
+
+`ACCESS_BACKGROUND_LOCATION` triggers Play's review for sensitive permissions. Answer the form with:
+
+~~~
+The optional "When to listen" feature lets the user pause the find-my-phone microphone listener at places they save (for example, work) or on Wi-Fi networks they save. The phone is usually in a pocket or bag with the screen off when this matters, so the check must run when the app is not on screen. Location is compared with the saved places on the device, held only in memory, never stored, shared or transmitted; the app has no internet permission. Without background access, place and Wi-Fi rules only work while the app is open, which defeats their purpose. The feature is off by default; the user must add a place or network, read an in-app disclosure, and grant the permission.
+~~~
+
+**Demo video** (30 to 60 seconds): open the app → *Choose when* → under *Places* select "Not at these places" → *Save where I am now* → show the disclosure dialog and the system prompts, including "Allow all the time" → return to the app → arm, lock the phone and show the notification change to "Not listening" while at the place.
+
+If the review is refused, remove the place and Wi-Fi rules and the three location permissions (see [PERMISSIONS.md](PERMISSIONS.md)); the other rules need nothing.
 
 ## Foreground service permissions
 
@@ -161,7 +175,7 @@ Declare type **Microphone** (`FOREGROUND_SERVICE_MICROPHONE`).
 **Use case (paste):**
 
 ~~~
-The Clappiest helps users find a lost phone. After the user taps ARM, a foreground service listens through the microphone while the screen is off for a clap pattern the user configured, then plays a user-chosen alarm. The service is started only by an explicit user action in the visible app, shows a persistent notification for as long as it runs, and stops when the user taps DISARM or turns the screen on. Audio is analyzed in memory in real time and is neither stored nor transmitted; the app has no internet permission. While the alarm sounds, the same service briefly listens for two claps so the user can silence it hands-free. Without a foreground microphone service Android would stop the microphone as soon as the screen turns off, which is the only moment the feature is needed.
+The Clappiest helps users find a lost phone. After the user taps ARM, a foreground service listens through the microphone while the screen is off for a clap pattern the user configured, then plays a user-chosen alarm. The service is started only by an explicit user action in the visible app and shows a persistent notification for as long as it runs. It listens for the clap pattern only while the screen is off, releasing the microphone when the screen turns on, and stops when the user taps DISARM. Audio is analyzed in memory in real time and is neither stored nor transmitted; the app has no internet permission. While the alarm sounds, the same service briefly listens for two claps so the user can silence it hands-free. Without a foreground microphone service Android would stop the microphone as soon as the screen turns off, which is the only moment the feature is needed.
 ~~~
 
 **Demo video** (30 to 60 seconds, unlisted YouTube link, no narration needed):
@@ -180,8 +194,7 @@ Personal developer accounts created after November 2023 must run a closed test w
 
 ## Pre-launch hygiene
 
-- Replace the launcher icon (KNOWN_ISSUES #6) so the installed icon matches the listing.
-- Fix or hide custom-sound mode (KNOWN_ISSUES #1) before production.
+- Launcher icon and custom-sound mode: done (adaptive icon is referenced; custom mode hidden). Confirm the installed icon on a device.
 - Verify clap mode on at least two physical devices from different manufacturers ([TESTING.md](TESTING.md)).
 - Close stale central-run issues on GitHub (#3, #5) once Play releases are passing.
 - Confirm `beta` and `production` tracks accept a release after the listing is complete; then decide whether open testing or a staged production rollout is wanted. The central profile publishes `beta` as completed and `production` as a draft with existing releases preserved.

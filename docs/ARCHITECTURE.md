@@ -6,15 +6,22 @@ Single-module Android app (`:app`), Kotlin, Jetpack Compose. `minSdk 26`, `targe
 
 | File | Role |
 |---|---|
-| `MainActivity.kt` | Compose UI: mode, clap count, sensitivity, alarm sound, ARM switch, live visualizer. Records the custom-sound template. |
+| `MainActivity.kt` | Compose UI: clap count, sensitivity, alarm sound, silence and update switches, rules entry, live visualizer, ARM button (pinned; the rest scrolls). The live test listens only while the app is on screen, unarmed and the microphone is allowed. |
 | `ListenerService.kt` | Foreground service (`microphone` type). Owns the microphone while armed. Screen-state receiver. Starts and stops the alarm, and runs the echo-cancelled, gap-and-window listening that lets two claps silence it. |
 | `EchoGuard.kt` | Pure Kotlin. Decides whether echo cancellation hides the alarm from the microphone. |
 | `ClapDetector.kt` | Pure Kotlin. Counts impulse claps in a PCM stream. |
-| `CustomSoundDetector.kt` | Pure Kotlin. Matches a recorded template against the stream. |
+| `ClapShape.kt` | Pure Kotlin. Decides whether a transient *sounds* like a clap (spectral centroid, low-band share, flatness; its own FFT). Used by `ClapDetector`. |
+| `CustomSoundDetector.kt` | Pure Kotlin. Matches a recorded template against the stream. **Not offered**: `Features.CUSTOM_SOUND` is false (KNOWN_ISSUES #1). |
 | `AlarmPlayer.kt` | Loops the chosen sound on the alarm stream at maximum volume; restores volume on stop. |
 | `UpdateChecker.kt` | Asks Google Play (through the Play Store app) whether a newer version exists; opens the Play listing. |
+| `RulesActivity.kt` | Compose screen "When to listen". Edits the rules, requests location only when a place or Wi-Fi rule is used (disclosure first). |
+| `ListenRules.kt` | Pure Kotlin. `Rules`, the conditions they test, and `RuleEngine.evaluate` which returns `Listen` or `Pause(reason)`. Unknown conditions never pause. |
+| `RulesCodec.kt` | Pure Kotlin. Stores `Rules` as `key=value` text in one preference; tolerant of damage. |
+| `BodyEstimator.kt` | Pure Kotlin. Guesses whether the phone is on a person: accelerometer motion, or a covered proximity sensor plus body tremor (so couch cushions do not count as a pocket). |
+| `ConditionWatcher.kt` | Android glue for the rules: battery, audio devices, Wi-Fi, location, motion sensors and the schedule alarm. Registers only what the rules need, and the costly sources only while the screen is off. |
+| `LocationAccess.kt` | None / while-in-use / all-the-time location state. |
 | `Snooze.kt` | Pure Kotlin. The "Later" rule. |
-| `Prefs.kt` | `SharedPreferences` wrapper: clap count, sensitivity, trigger mode, custom sound bytes, alarm URI. |
+| `Prefs.kt` | `SharedPreferences` wrapper: clap count, sensitivity, trigger mode (forced to `claps`), alarm URI, rules; `Features` switches off unfinished features and `dropRetiredData()` deletes any custom recording left by an older version. |
 
 ## State machine
 
@@ -39,7 +46,20 @@ Single-module Android app (`:app`), Kotlin, Jetpack Compose. `minSdk 26`, `targe
 1. `MainActivity` checks `RECORD_AUDIO` (and `POST_NOTIFICATIONS` on API 33+), then `ContextCompat.startForegroundService`.
 2. `onStartCommand` calls `startForeground(..., FOREGROUND_SERVICE_TYPE_MICROPHONE)`, registers the screen receiver once, then restarts the detector so changed settings apply.
 3. `START_NOT_STICKY`: Android 11+ forbids starting a microphone service from the background, so a system restart could not recover it anyway. The user re-arms.
-4. `onDestroy` unregisters the receiver, stops listening, silences the alarm.
+4. `onDestroy` unregisters the receiver, stops watching conditions, stops listening, silences the alarm.
+
+### Rules
+
+`ListenerService.applyRules()` is the one place that decides whether the find-the-phone listener runs. It is called on screen on/off, when `ConditionWatcher` reports a change, after the schedule alarm fires, after a failed microphone retry, and after the alarm is silenced:
+
+~~~
+screen on            -> stop listening
+screen off, rules ok -> start listening (no-op if already)
+screen off, paused   -> stop listening, notification "Not listening / Resting: <reason>"
+alarm sounding       -> nothing changes; rules never cut an alarm
+~~~
+
+The hours rule needs no wake lock while paused: one inexact `AlarmManager` alarm (`setAndAllowWhileIdle`) wakes the service at the next open or close, so it may be a few minutes late. The on-body rule holds a partial wake lock while the screen is off, because sensors do not report while the CPU sleeps; this costs about as much as listening. Places use network-provider location updates every 5 minutes with the screen off. Fixes older than 30 minutes or less accurate than 500 m are treated as unknown.
 
 `ListenerService.running` is a Compose `mutableStateOf` read by the UI. It is process-local; it resets when the process dies.
 
@@ -79,7 +99,7 @@ alarm start ──4.0 s── window (mute) ──3.0 s── unmute ── verd
 
 ## Audio source
 
-`VOICE_RECOGNITION`, falling back to `MIC`. `MIC` applies noise suppression and automatic gain on most phones, which flattens clap transients. The custom-sound recorder currently uses `MIC`; see KNOWN_ISSUES #3.
+`VOICE_RECOGNITION`, falling back to `MIC`. `MIC` applies noise suppression and automatic gain on most phones, which flattens clap transients.
 
 ## Alarm
 
@@ -97,9 +117,10 @@ alarm start ──4.0 s── window (mute) ──3.0 s── unmute ── verd
 | `updateCheck` | boolean | Check for updates (default on) |
 | `lastUpdateCheck` | long | Time of the last completed check |
 | `snoozedKey`, `snoozedUntil` | string, long | "Later": the version code and when it stops being hidden (3 days) |
-| `triggerMode` | string | `claps` or `custom` |
-| `customSound` | string | Base64 of 1.5 s PCM16 mono audio (~64 KB) |
+| `triggerMode` | string | `claps`. (`custom` is not offered; a stored value is ignored) |
+| `customSound` | string | Retired. Deleted on launch if an older version left one |
 | `alarmUri` | string | URI of the chosen alarm sound |
+| `rules` | string | The "When to listen" rules as `key=value` lines, including any saved place names and coordinates and Wi-Fi network names |
 
 A chosen audio file keeps a persisted read grant (`takePersistableUriPermission`). The file is not copied.
 
