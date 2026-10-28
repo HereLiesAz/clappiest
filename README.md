@@ -20,11 +20,11 @@ Silence the alarm by unlocking the phone, tapping **Stop** on the notification, 
 
 | File | Role |
 |---|---|
-| `ClapDetector.kt` | Pure-Kotlin impulse detector. A clap = sharp onset above the adaptive noise floor that decays within 120 ms. Claps 120–1200 ms apart form one sequence; the sequence is judged after 1.2 s of quiet. |
-| `ListenerService.kt` | Microphone foreground service. Records only while the screen is off; stops when it turns on. On match: alarm + notification. |
+| `ClapDetector.kt` | Pure-Kotlin impulse detector. A clap = sharp onset above the adaptive noise floor that falls to 40% within 200 ms, and whose sound is clap-like (`ClapShape`). Claps 120–1200 ms apart form one sequence; the sequence is judged after 1.2 s of quiet. |
+| `ListenerService.kt` | Microphone foreground service. Listens for the find-the-phone code only while the screen is off and the "When to listen" rules allow it; releases the microphone when the screen turns on. On match: alarm + notification, then (if enabled) short listening windows for two claps to silence it. |
 | `AlarmPlayer.kt` | Looping `MediaPlayer` on the alarm stream at max volume; restores prior volume afterward. |
-| `Prefs.kt` | Clap count, sensitivity, sound URI. |
-| `MainActivity.kt` | Compose settings screen and arm switch. |
+| `Prefs.kt` | Settings: clap count, sensitivity, sound URI, switches, rules. |
+| `MainActivity.kt` / `RulesActivity.kt` | Compose settings screen and arm button; the "When to listen" screen. |
 
 ## Updates
 

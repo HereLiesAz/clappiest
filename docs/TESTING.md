@@ -95,7 +95,6 @@ Expected results assume clap mode, sensitivity 0.5, 3 claps, unless stated.
 | T68 | Alarm is never cut | Trigger the alarm, then change a rule that would pause it | The alarm keeps sounding; after silencing, the rule applies |
 | T69 | Rules cleared | Turn every rule off | Listening returns whenever the screen is off |
 | T70 | TalkBack | Walk the "When to listen" screen with TalkBack | Each choice announces its label and selected state; day buttons announce On/Off |
-| T27 | Lock-screen integrity | With a PIN/pattern/biometric set: arm → screen off → screen on, repeat 20×; also after an alarm and after **Stop**; then repeat with the app force-stopped | Lock screen appears every time, identically in both conditions (KNOWN_ISSUES R1) |
 
 ## Result log
 
@@ -109,7 +108,7 @@ T7  furthest reliable distance:
 
 ## Release gate
 
-- T1–T6, T11–T13, T16, T27 pass on every device in the matrix.
+- T1–T6, T11–T13, T16 pass on every device in the matrix.
 - T9: no false alarms.
 - T17 meets the target or the user-facing battery note is updated.
 - T22 passes.

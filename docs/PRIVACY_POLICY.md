@@ -15,7 +15,11 @@ Effective: 2026-10-24
 
 ## What the app does with your microphone
 
-When you tap **ARM**, and whenever the screen is off, the app listens through the microphone to detect the number of claps you set. While the alarm is sounding it also listens, in short pauses, for two claps so you can silence it (you can turn this off in the app). When the app is open and disarmed, the main screen listens briefly to draw a live waveform.
+The microphone is used in three situations, and only in these:
+
+1. **Armed, screen off:** after you tap **ARM**, whenever the screen is off (and your optional "When to listen" rules allow it), to detect the number of claps you set. It is released when the screen turns on.
+2. **While the alarm sounds:** in short pauses, to hear two claps so you can silence it. You can turn this off in the app.
+3. **App open and disarmed:** the main screen listens to draw the live test waveform, only while the app is on screen and the microphone is allowed.
 
 Audio is read in short pieces, measured, and discarded straight away. It is never written to storage and never transmitted.
 
@@ -75,7 +79,7 @@ Details: [PERMISSIONS.md](PERMISSIONS.md).
 
 ## Google Play
 
-The app is distributed through Google Play. Google processes install and device information, and answers the update check, under its own privacy policy. The developer receives only aggregated statistics from Play Console.
+The app is distributed through Google Play. Google processes install and device information, and answers the update check, under its own privacy policy. The developer receives from Play Console only aggregated statistics and the crash and not-responding reports that Google collects from users who have chosen to share them (Android vitals). Those reports describe a crash (stack trace, device model, Android version), not your activity, and contain no audio.
 
 ## Retention and deletion
 
